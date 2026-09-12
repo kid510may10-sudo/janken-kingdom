@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#15111d">
+<title>じゃんけんキングダム・カード編集</title>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#15111d;--p:#251e31;--line:#534765;--text:#fff9ee;--muted:#beb2cc;--gold:#f6c654}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#352843,#17121f 48%,#0e0b13);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
+.wrap{max-width:900px;margin:auto;padding:16px}.panel{background:#251e31ee;border:1px solid #4d405e;border-radius:18px;padding:14px;margin-bottom:12px}.hidden{display:none!important}
+h1{font-size:21px;margin:0 0 8px}.muted{font-size:12px;color:var(--muted);line-height:1.55}.field{margin:10px 0}.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;padding:11px;border-radius:11px;border:1px solid #564868;background:#17121f;color:white;font:inherit}.field textarea{min-height:90px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.list{display:grid;gap:7px;max-height:50vh;overflow:auto}.card{background:#19141f;border:1px solid #4e405e;border-radius:13px;padding:10px}
+.card b{font-size:13px}.card small{display:block;color:#bcaec7;margin-top:3px}.tag{font-size:9px;padding:2px 6px;border-radius:999px;background:#332842;border:1px solid #584869;margin-left:4px}
+button{border:0;border-radius:12px;padding:11px 13px;font-weight:900;font:inherit}.primary{background:linear-gradient(135deg,#ffe078,#efa83c);color:#2a1b06}.secondary{background:#3a304c;color:white;border:1px solid #5c4e72}
+.notice{padding:9px;border:1px solid #806a31;border-radius:12px;background:#342b18;color:#ffe9a8;font-size:12px}.ok{color:#79e8aa}.err{color:#ff9b9b}.actions{display:flex;gap:7px}.actions button{flex:1}
+@media(max-width:650px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <div class="panel"><h1>✏️ じゃんけんキングダム・カード編集</h1><div class="muted">一度作ったカードを、同じカードIDのままFirebaseへ上書きします。すでに児童が所持しているカードにも変更が反映されます。</div></div>
+
+ <div id="loginPanel" class="panel">
+  <div class="field"><label>教員メールアドレス</label><input id="email" type="email" autocomplete="username"></div>
+  <div class="field"><label>パスワード</label><input id="password" type="password" autocomplete="current-password"></div>
+  <button class="primary" style="width:100%" onclick="login()">ログイン</button>
+  <div id="loginStatus" class="muted" style="margin-top:8px"></div>
+ </div>
+
+ <div id="main" class="hidden">
+  <div class="panel">
+   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>📚 カード一覧</b><button class="secondary" onclick="logout()">ログアウト</button></div>
+   <div class="field"><input id="search" placeholder="カード名・属性・効果で検索" oninput="renderList()"></div>
+   <div id="list" class="list"></div>
+  </div>
+
+  <div id="editor" class="panel hidden">
+   <div class="notice">編集中：<b id="editingLabel"></b><br>カードIDは変更しません。</div>
+   <div class="grid">
+    <div class="field"><label>カード名</label><input id="name"></div>
+    <div class="field"><label>じゃんけん</label><select id="hand"><option value="rock">✊ グー</option><option value="scissors">✌️ チョキ</option><option value="paper">✋ パー</option></select></div>
+    <div class="field"><label>種族・属性</label><select id="attr"><option value="none">無属性</option><option value="vampire">バンパイア</option><option value="dragon">ドラゴン</option><option value="beast">ビースト</option><option value="elf">エルフ</option><option value="undead">アンデッド</option><option value="machine">マシン</option><option value="spirit">スピリット</option><option value="knight">ナイト</option><option value="mage">メイジ</option><option value="christmas">クリスマス</option><option value="dog">ドッグ</option></select></div>
+    <div class="field"><label>レアリティ</label><select id="rarity"><option>N</option><option>R</option><option>SR</option><option>UR</option><option>AR</option><option>P</option></select></div>
+   </div>
+   <div class="field"><label>表示する効果説明</label><textarea id="desc"></textarea></div>
+   <label><input id="discardImmune" type="checkbox"> 🛡️ このカードは手札から捨てられない</label>
+
+   <div class="panel" style="background:#1b1624;margin-top:12px">
+    <b>✨ 進化条件</b>
+    <div class="field"><label>カードタイプ</label><select id="cardType" onchange="syncUI()"><option value="normal">通常</option><option value="special">必殺</option><option value="evolution">進化</option></select></div>
+    <div id="evoFields">
+     <div class="grid">
+      <div class="field"><label>進化条件</label><select id="evoType"><option value="round">指定ラウンド以降</option><option value="behind">指定点以上負けている</option><option value="wins">指定回数勝利</option><option value="used_attr">指定属性を指定枚数使用</option><option value="robot_complete">ロボ完成済み</option><option value="incarnation_in_hand">化身が手札にいる</option><option value="incarnation_count">化身が指定種類以上いる</option><option value="discarded_attr">指定種族が捨てられた</option></select></div>
+      <div class="field"><label>条件数値</label><input id="evoValue" type="number" min="1" max="6"></div>
+      <div class="field"><label>条件属性</label><select id="evoAttr"><option value="none">無属性</option><option value="vampire">バンパイア</option><option value="dragon">ドラゴン</option><option value="beast">ビースト</option><option value="elf">エルフ</option><option value="undead">アンデッド</option><option value="machine">マシン</option><option value="spirit">スピリット</option><option value="knight">ナイト</option><option value="mage">メイジ</option><option value="christmas">クリスマス</option><option value="dog">ドッグ</option></select></div>
+      <div class="field"><label>進化後の名前</label><input id="evoName"></div>
+      <div class="field"><label>進化後の手</label><select id="evoHand"><option value="rock">✊ グー</option><option value="scissors">✌️ チョキ</option><option value="paper">✋ パー</option></select></div>
+     </div>
+     <div class="field"><label>進化後の効果文章</label><textarea id="evoEffectText"></textarea></div>
+    </div>
+   </div>
+
+   <div class="panel" style="background:#1b1624">
+    <b>🪄 化身・最終進化</b>
+    <div class="field"><label>化身を呼ぶ条件</label><select id="incCondition"><option value="">変更なし / 化身なし</option><option value="always">このカードを使った時</option><option value="win">勝った時</option><option value="lose">負けた時</option><option value="round">指定ラウンド以降</option><option value="behind">指定点以上負けている</option><option value="used_attr">指定属性を指定枚数使用</option><option value="robot_complete">ロボ完成済み</option><option value="incarnation_in_hand">化身が手札にいる</option><option value="discarded_attr">指定種族が捨てられた</option></select></div>
+    <div class="grid"><div class="field"><label>条件数値</label><input id="incValue" type="number" min="1" max="6"></div><div class="field"><label>条件属性</label><select id="incAttr"><option value="none">無属性</option><option value="vampire">バンパイア</option><option value="dragon">ドラゴン</option><option value="beast">ビースト</option><option value="elf">エルフ</option><option value="undead">アンデッド</option><option value="machine">マシン</option><option value="spirit">スピリット</option><option value="knight">ナイト</option><option value="mage">メイジ</option><option value="christmas">クリスマス</option><option value="dog">ドッグ</option></select></div></div>
+    <label><input id="finalEnabled" type="checkbox" onchange="syncUI()"> 👑 最終進化あり</label>
+    <div id="finalFields">
+     <div class="field"><label>最終進化条件</label><select id="finalMode"><option value="count">化身が指定種類数そろう</option><option value="specific">指定化身が全部そろう</option></select></div>
+     <div class="field"><label>必要な化身種類数</label><input id="finalCount" type="number" min="1" max="4"></div>
+     <div class="field"><label>指定化身番号（0〜3、例：0,1,2）</label><input id="finalSpecific" placeholder="0,1,2"></div>
+     <div class="grid"><div class="field"><label>最終進化名</label><input id="finalName"></div><div class="field"><label>最終進化後の手</label><select id="finalHand"><option value="rock">✊ グー</option><option value="scissors">✌️ チョキ</option><option value="paper">✋ パー</option></select></div></div>
+     <div class="field"><label>最終進化後の効果文章</label><textarea id="finalEffectText"></textarea></div>
+    </div>
+   </div>
+
+
+   <div class="panel" style="background:#1b1624">
+    <b>📦 収録パック</b>
+    <div class="muted" style="margin-top:5px">このカードを収録するパックを変更できます。Pカードは通常パックに入れない設定のままにできます。</div>
+    <div id="packChoices" style="margin-top:8px"></div>
+   </div>
+
+   <details class="panel" style="background:#17121f"><summary><b>🧩 上級者用：カードデータJSON</b></summary><div class="muted">フォームにない設定もここで編集できます。カードIDは変更できません。</div><textarea id="rawJson" style="width:100%;min-height:250px;margin-top:8px;background:#0f0c13;color:#dff;border:1px solid #4d405e;border-radius:10px;padding:10px"></textarea></details>
+
+   <div class="actions"><button class="primary" onclick="saveCard()">💾 上書き保存</button><button class="secondary" onclick="cancelEdit()">キャンセル</button></div>
+   <div id="status" class="muted" style="margin-top:8px"></div>
+  </div>
+ </div>
+</div>
+<script>
+const firebaseConfig={apiKey:"AIzaSyBpC_YgEG6-T70HwSlB3__MDI70WNsxqiQ",authDomain:"janken-kingdom.firebaseapp.com",projectId:"janken-kingdom",storageBucket:"janken-kingdom.firebasestorage.app",messagingSenderId:"748399805019",appId:"1:748399805019:web:b3d6dc75ccf551bef3357e"};
+let auth,db,cards=[],packs=[],editing=null;
+const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+function setv(id,v){if($(id)&&v!==undefined&&v!==null)$(id).value=v} function setc(id,v){if($(id))$(id).checked=!!v}
+window.addEventListener("DOMContentLoaded",()=>{firebase.initializeApp(firebaseConfig);auth=firebase.auth();db=firebase.firestore();auth.onAuthStateChanged(u=>{if(u){$("loginPanel").classList.add("hidden");$("main").classList.remove("hidden");watchCards()}else{$("loginPanel").classList.remove("hidden");$("main").classList.add("hidden")}})});
+async function login(){try{$("loginStatus").textContent="ログイン中…";await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value);$("loginStatus").textContent=""}catch(e){$("loginStatus").innerHTML='<span class="err">ログイン失敗：'+esc(e.message)+'</span>'}}
+async function logout(){await auth.signOut()}
+function watchCards(){
+ db.collection("cards").onSnapshot(s=>{cards=s.docs.map(d=>({id:d.id,...d.data()}));renderList()},e=>$("list").innerHTML='<div class="err">'+esc(e.message)+'</div>');
+ db.collection("packs").onSnapshot(s=>{
+   packs=s.docs.map(d=>({id:d.id,...d.data()}));
+   renderPackChoices();
+ },e=>console.warn("pack watch",e));
+}
+
+function renderPackChoices(){
+ const root=$("packChoices");if(!root)return;
+ const selected=new Set(editing?.packs||[]);
+ const list=[{id:"all_mix",name:"キングダム常設ミックス",permanent:true},...packs.filter(p=>p.id!=="all_mix")];
+ const uniq=[];const seen=new Set();
+ for(const p of list){if(seen.has(p.id))continue;seen.add(p.id);uniq.push(p)}
+ root.innerHTML=uniq.map(p=>`<label style="display:block;margin:7px 0;padding:8px;border:1px solid #4e405e;border-radius:10px;background:#17121f">
+   <input type="checkbox" name="editPack" value="${esc(p.id)}" ${selected.has(p.id)?"checked":""}>
+   📦 ${esc(p.name||p.id)}${p.permanent?' <span class="tag">常設</span>':""}
+ </label>`).join("")||'<div class="muted">パック情報を取得中です…</div>';
+}
+
+function renderList(){let q=$("search").value.trim().toLowerCase(),a=cards.filter(c=>!q||[c.name,c.desc,c.attr,c.rarity].join(" ").toLowerCase().includes(q));$("list").innerHTML=a.map(c=>`<div class="card"><b>${esc(c.name||c.id)} <span class="tag">${esc(c.rarity||"N")}</span></b><small>${esc(c.attr||"none")} / ${esc(c.desc||"")}<br>📦 ${(c.packs||[]).length?esc((c.packs||[]).map(id=>packs.find(p=>p.id===id)?.name||id).join(" / ")):"未指定"}</small><button class="secondary" style="width:100%;margin-top:7px" onclick="editCard('${c.id}')">✏️ 編集</button></div>`).join("")||'<div class="muted">カードなし</div>'}
+function editCard(id){let c=cards.find(x=>x.id===id);if(!c)return;editing=JSON.parse(JSON.stringify(c));$("editor").classList.remove("hidden");$("editingLabel").textContent=c.name||id;setv("name",c.name||"");setv("hand",c.hand||"rock");setv("attr",c.attr||"none");setv("rarity",c.rarity||"N");setv("desc",c.desc||"");setc("discardImmune",c.discardImmune);setv("cardType",c.cardType||"normal");let e=c.evolution||{};setv("evoType",e.condition?.type||"round");setv("evoValue",e.condition?.value||3);setv("evoAttr",e.condition?.attr||"machine");setv("evoName",e.name||"");setv("evoHand",e.hand||"rock");setv("evoEffectText",e.effectText||"");let ia=c.incarnationAbility;setv("incCondition",ia?.condition||"");setv("incValue",ia?.value||3);setv("incAttr",ia?.attr||"machine");setc("finalEnabled",e.final?.enabled);setv("finalMode",e.final?.requirementMode||"count");setv("finalCount",e.final?.incarnationCount||3);setv("finalSpecific",(e.final?.requiredIncarnationIndexes||[]).join(","));setv("finalName",e.final?.name||"");setv("finalHand",e.final?.hand||e.hand||"rock");setv("finalEffectText",e.final?.effectText||"");$("rawJson").value=JSON.stringify(c,null,2);syncUI();renderPackChoices();$("editor").scrollIntoView({behavior:"smooth"})}
+function syncUI(){$("evoFields").classList.toggle("hidden",$("cardType").value!=="evolution");$("finalFields").classList.toggle("hidden",!$("finalEnabled").checked)}
+function parseSpecific(){return $("finalSpecific").value.split(",").map(x=>Number(x.trim())).filter(Number.isInteger).filter(x=>x>=0&&x<=3)}
+function merged(){if(!editing)throw Error("カードを選んでください");let c=JSON.parse(JSON.stringify(editing));c.name=$("name").value.trim()||c.name;c.hand=$("hand").value;c.attr=$("attr").value;c.rarity=$("rarity").value;c.desc=$("desc").value;c.discardImmune=$("discardImmune").checked;c.cardType=$("cardType").value;
+ c.packs=c.rarity==="P"?[]:[...document.querySelectorAll('input[name="editPack"]:checked')].map(x=>x.value);if(c.cardType==="evolution"){c.evolution=c.evolution||{};c.evolution.condition={type:$("evoType").value,value:Math.max(1,Number($("evoValue").value)||1),attr:$("evoAttr").value};c.evolution.name=$("evoName").value.trim()||c.evolution.name||"進化形";c.evolution.hand=$("evoHand").value;c.evolution.effectText=$("evoEffectText").value;c.evolution.final=c.evolution.final||{};c.evolution.final.enabled=$("finalEnabled").checked;c.evolution.final.requirementMode=$("finalMode").value;c.evolution.final.incarnationCount=Math.max(1,Math.min(4,Number($("finalCount").value)||3));c.evolution.final.requiredIncarnationIndexes=parseSpecific();c.evolution.final.name=$("finalName").value.trim()||c.evolution.final.name||"最終進化形";c.evolution.final.hand=$("finalHand").value;c.evolution.final.effectText=$("finalEffectText").value}else c.evolution=null;if(c.incarnationAbility&&$("incCondition").value){c.incarnationAbility.condition=$("incCondition").value;c.incarnationAbility.value=Math.max(1,Number($("incValue").value)||1);c.incarnationAbility.attr=$("incAttr").value}c.id=editing.id;return c}
+async function saveCard(){try{let c=merged();if(c.evolution?.final?.enabled&&c.evolution.final.requirementMode==="specific"&&!c.evolution.final.requiredIncarnationIndexes.length)throw Error("指定化身型では必要な化身番号を入力してください");$("status").textContent="保存中…";await db.collection("cards").doc(c.id).set(c);editing=c;$("rawJson").value=JSON.stringify(c,null,2);$("status").innerHTML='<span class="ok">✅ 上書き保存しました。効果・条件・収録パックがゲーム側にも反映されます。</span>'}catch(e){$("status").innerHTML='<span class="err">保存できません：'+esc(e.message)+'</span>'}}
+function cancelEdit(){editing=null;$("editor").classList.add("hidden");$("status").textContent=""}
+</script>
+</body></html>
