@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#15111d"><title>じゃんけんキングダム・カード＆ペット効果・バランス編集</title>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#15111d;--p:#251e31;--line:#534765;--text:#fff9ee;--muted:#beb2cc;--gold:#f6c654;--good:#79e8aa;--bad:#ff9b9b}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#352843,#17121f 48%,#0e0b13);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}.wrap{max-width:1050px;margin:auto;padding:14px}.panel{background:#251e31ee;border:1px solid #4d405e;border-radius:18px;padding:14px;margin-bottom:12px}.sub{background:#1b1624}.hidden{display:none!important}h1{font-size:21px;margin:0 0 8px}.muted{font-size:12px;color:var(--muted);line-height:1.55}.field{margin:9px 0}.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}.field input,.field select,.field textarea{width:100%;padding:11px;border-radius:11px;border:1px solid #564868;background:#17121f;color:white;font:inherit}.field textarea{min-height:90px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}.grid3{display:grid;grid-template-columns:1.4fr .6fr 1fr;gap:9px}.list{display:grid;gap:7px;max-height:58vh;overflow:auto}.card{background:#19141f;border:1px solid #4e405e;border-radius:13px;padding:10px}.card b{font-size:13px}.card small{display:block;color:#bcaec7;margin-top:3px}.tag{font-size:9px;padding:2px 6px;border-radius:999px;background:#332842;border:1px solid #584869;margin-left:4px}button{border:0;border-radius:12px;padding:11px 13px;font-weight:900;font:inherit}.primary{background:linear-gradient(135deg,#ffe078,#efa83c);color:#2a1b06}.secondary{background:#3a304c;color:white;border:1px solid #5c4e72}.danger{background:#5a2630;color:#fff;border:1px solid #8a3c4a}.ok{color:var(--good)}.err{color:var(--bad)}.actions{display:flex;gap:7px;flex-wrap:wrap}.actions button{flex:1}.meter{height:12px;background:#16111d;border-radius:999px;overflow:hidden;border:1px solid #4d405e}.meter>div{height:100%;width:0;background:linear-gradient(90deg,#79e8aa,#ffe078,#ff9b9b);transition:.2s}.score{font-size:28px;font-weight:900}.warn{padding:9px;border-radius:11px;background:#342b18;border:1px solid #806a31;color:#ffe9a8;font-size:12px}.effectRow{padding:10px;border:1px solid #4d405e;border-radius:13px;margin:8px 0;background:#17121f}.effectRow textarea{min-height:70px;font-size:12px}.pill{display:inline-block;padding:3px 8px;border-radius:999px;border:1px solid #5c4e72;background:#332842;font-size:10px;margin:2px}.sticky{position:sticky;bottom:8px;z-index:5;background:#211a2baa;border:1px solid #5c4e72;backdrop-filter:blur(8px);padding:8px;border-radius:14px}@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}.actions button{flex-basis:100%}}
+</style>
+<style id="petBalanceEditorStyle">
+.pet-top{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pet-top>*{flex:1;min-width:140px}
+.pet-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:9px 0}
+.pet-kpi{background:#17121f;border:1px solid #4e405e;border-radius:12px;padding:9px;text-align:center}
+.pet-kpi b{font-size:18px;display:block}
+.pet-list{display:grid;gap:8px;max-height:62vh;overflow:auto}
+.pet-row{background:#19141f;border:1px solid #4e405e;border-radius:13px;padding:10px}
+.pet-row.danger{border-color:#a94c56;background:#28171d}
+.pet-row.strong{border-color:#94713a}
+.pet-row.ok{border-color:#426d56}
+.pet-score{font-size:19px;font-weight:900}
+.pet-mini{font-size:10px;color:#c3b6cf;line-height:1.5}
+.pet-badge{display:inline-block;border-radius:999px;padding:3px 7px;font-size:9px;border:1px solid #5b4d6d;background:#30263d;margin-left:4px}
+.pet-editor-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pet-ability{background:#17121f;border:1px solid #4d405e;border-radius:12px;padding:9px;margin:7px 0}
+.pet-ability-grid{display:grid;grid-template-columns:1.25fr .55fr .55fr .55fr auto;gap:6px;align-items:end}
+.pet-ability-grid input,.pet-ability-grid select{width:100%;padding:9px;border-radius:9px;border:1px solid #564868;background:#0f0c14;color:white}
+.pet-power-danger{background:#3b1c24;border:1px solid #9c4858;color:#ffd4d9}
+.pet-power-strong{background:#342b18;border:1px solid #806a31;color:#ffe9a8}
+.pet-power-ok{background:#173021;border:1px solid #3d7651;color:#cef5da}
+.pet-power-low{background:#182635;border:1px solid #3e6485;color:#d6eaff}
+.pet-toolbar{position:sticky;top:6px;z-index:4;background:#211a2bee;border:1px solid #5c4e72;border-radius:13px;padding:9px;backdrop-filter:blur(8px)}
+.pet-json{width:100%;min-height:220px;background:#0f0c13;color:#dff;border:1px solid #4d405e;border-radius:10px;padding:10px}
+@media(max-width:700px){.pet-summary,.pet-editor-grid{grid-template-columns:repeat(2,1fr)}.pet-ability-grid{grid-template-columns:1fr 1fr}.pet-ability-grid button{grid-column:1/-1}}
+</style>
+</head><body><div class="wrap">
+<div class="panel"><h1>⚖️ じゃんけんキングダム・カード＆ペット効果・バランス編集</h1><div class="muted">カードと最新ペットをまとめて編集・自動診断する上級バランスツール。強すぎるキャラを自動検出し、保存時は未知の項目も残します。</div></div>
+<div id="loginPanel" class="panel"><div class="field"><label>教員メールアドレス</label><input id="email" type="email" autocomplete="username"></div><div class="field"><label>パスワード</label><input id="password" type="password" autocomplete="current-password"></div><button class="primary" style="width:100%" onclick="login()">ログイン</button><div id="loginStatus" class="muted"></div></div>
+<div id="main" class="hidden">
+ <div class="panel"><div class="actions"><b style="flex:3">📚 カード一覧</b><button class="secondary" onclick="runBalanceAudit()">⚖️ 全カード診断</button><button class="secondary" onclick="logout()">ログアウト</button></div><div class="grid2"><div class="field"><input id="search" placeholder="カード名・種族・効果で検索" oninput="renderList()"></div><div class="field"><select id="sort" onchange="renderList()"><option value="rarity_desc">レア度 高い順</option><option value="name">名前順</option><option value="balance_desc">強さ推定 高い順</option><option value="balance_asc">強さ推定 低い順</option></select></div></div><div id="audit" class="muted"></div><div id="list" class="list"></div></div>
+ <div class="panel" id="petBalancePanel">
+   <div class="actions"><b style="flex:3">🐾 ペット自動バランス診断</b><button class="secondary" onclick="runPetBalanceAudit()">⚖️ 全ペット診断</button><button class="secondary" onclick="reloadPetConfig()">🔄 最新ペット再読込</button></div>
+   <div class="muted">最新のペット設定をFirebaseから直接取得します。HP / ATK / DEF / SPD、Lv15時点の能力値、バトルスキルをまとめて強さ推定し、強すぎるキャラを上に表示します。未知の設定項目は保存時も残します。</div>
+   <div class="pet-summary">
+     <div class="pet-kpi"><span class="muted">ペット数</span><b id="petCount">0</b></div>
+     <div class="pet-kpi"><span class="muted">強すぎる</span><b id="petDangerCount">0</b></div>
+     <div class="pet-kpi"><span class="muted">強め</span><b id="petStrongCount">0</b></div>
+     <div class="pet-kpi"><span class="muted">基準値</span><b id="petMedianScore">0</b></div>
+   </div>
+   <div class="pet-toolbar">
+     <div class="pet-top">
+       <input id="petSearch" placeholder="🔎 ペット名・種族・能力で検索" oninput="renderPetList()">
+       <select id="petSort" onchange="renderPetList()">
+         <option value="power_desc">強すぎる順</option>
+         <option value="power_asc">弱い順</option>
+         <option value="name">名前順</option>
+         <option value="level15">Lv15能力値が高い順</option>
+       </select>
+       <select id="petFilter" onchange="renderPetList()">
+         <option value="all">すべて表示</option>
+         <option value="danger">🚨 強すぎるだけ</option>
+         <option value="strong">⚠️ 強め以上</option>
+       </select>
+     </div>
+   </div>
+   <div id="petAudit" class="muted" style="margin:8px 0"></div>
+   <div id="petList" class="pet-list"></div>
+ </div>
+
+ <div id="petEditor" class="panel hidden">
+   <div class="warn">🐾 編集中：<b id="petEditingLabel"></b>　ペットIDは変更しません。どの卵から生まれるキャラでも同じ定義を編集します。</div>
+   <div id="petPowerAdvice" class="warn" style="margin:9px 0"></div>
+
+   <div class="grid2">
+     <div class="field"><label>ペット名</label><input id="petName" oninput="updatePetBalancePreview()"></div>
+     <div class="field"><label>種族</label><input id="petSpecies" oninput="updatePetBalancePreview()"></div>
+     <div class="field"><label>手</label><select id="petHand"><option value="rock">✊ グー</option><option value="scissors">✌️ チョキ</option><option value="paper">✋ パー</option></select></div>
+     <div class="field"><label>レアリティ</label><select id="petRarity"><option>RP</option><option>SRP</option><option>URP</option><option>ARP</option></select></div>
+   </div>
+
+   <div class="panel sub">
+     <b>📊 基礎ステータス</b>
+     <div class="pet-editor-grid">
+       <div class="field"><label>❤️ HP</label><input id="petHP" type="number" min="1" oninput="updatePetBalancePreview()"></div>
+       <div class="field"><label>⚔️ ATK</label><input id="petATK" type="number" min="0" oninput="updatePetBalancePreview()"></div>
+       <div class="field"><label>🛡️ DEF</label><input id="petDEF" type="number" min="0" oninput="updatePetBalancePreview()"></div>
+       <div class="field"><label>💨 SPD</label><input id="petSPD" type="number" min="0" oninput="updatePetBalancePreview()"></div>
+     </div>
+     <div class="actions">
+       <button class="secondary" onclick="scalePetStats(.8)">ステータス弱体化 ×0.8</button>
+       <button class="secondary" onclick="scalePetStats(.9)">少し弱体化 ×0.9</button>
+       <button class="secondary" onclick="scalePetStats(1.1)">少し強化 ×1.1</button>
+     </div>
+   </div>
+
+   <div class="panel sub">
+     <b>🔥 バトルスキル</b>
+     <div class="grid2">
+       <div class="field"><label>スキル種類</label><input id="petBattleSkillType" placeholder="none / heal / ... " oninput="updatePetBalancePreview()"></div>
+       <div class="field"><label>数値</label><input id="petBattleSkillValue" type="number" step="1" oninput="updatePetBalancePreview()"></div>
+     </div>
+   </div>
+
+   <div class="panel sub">
+     <div class="actions"><b style="flex:3">✨ 能力</b><button class="secondary" onclick="addPetAbility()">＋ 能力を追加</button></div>
+     <div class="muted">Lv.1は無能力が基本。能力値は「解放Lv・初期値・何Lvごと・成長量」まで直接編集できます。未知の能力IDもそのまま編集できます。</div>
+     <div id="petAbilities"></div>
+   </div>
+
+   <div class="panel sub">
+     <b>🌟 進化</b>
+     <div id="petEvolutionSummary" class="muted"></div>
+   </div>
+
+   <div class="panel sub">
+     <b>🤖 自動調整</b>
+     <div class="muted">現在の全ペットの中央値を基準に、強すぎるペットの数値だけを自動で下げます。名前・画像・進化・未知の設定は変更しません。</div>
+     <div class="actions" style="margin-top:8px">
+       <button class="primary" onclick="autoBalanceCurrentPet()">⚖️ このペットを標準付近へ自動調整</button>
+       <button class="secondary" onclick="autoBalancePetAbilitiesOnly()">✨ 能力値だけ自動調整</button>
+     </div>
+   </div>
+
+   <details class="panel sub">
+     <summary><b>🧩 完全編集：ペットデータJSON</b></summary>
+     <div class="muted">最新ゲームに追加された未知の項目もここに残ります。JSONから直接編集もできます。</div>
+     <textarea id="petRawJson" class="pet-json"></textarea>
+     <div class="actions"><button class="secondary" onclick="applyPetRawJson()">JSON → フォーム反映</button><button class="secondary" onclick="refreshPetRawJson()">フォーム → JSON更新</button></div>
+   </details>
+
+   <div class="sticky actions">
+     <button class="primary" onclick="savePet()">💾 ペットを上書き保存</button>
+     <button class="secondary" onclick="updatePetBalancePreview()">⚖️ 強さ再診断</button>
+     <button class="secondary" onclick="cancelPetEdit()">キャンセル</button>
+   </div>
+   <div id="petStatus" class="muted"></div>
+ </div>
+
+ <div id="editor" class="panel hidden"><div class="warn">編集中：<b id="editingLabel"></b>　カードIDは変更しません。保存前に下の「変更プレビュー」で差分を確認できます。</div>
+  <div class="grid2"><div class="field"><label>カード名</label><input id="name" oninput="updateBalance()"></div><div class="field"><label>カードタイプ</label><select id="cardType" onchange="syncUI();updateBalance()"><option value="normal">通常</option><option value="special">必殺</option><option value="evolution">進化</option></select></div><div class="field"><label>じゃんけん</label><select id="hand"><option value="rock">✊ グー</option><option value="scissors">✌️ チョキ</option><option value="paper">✋ パー</option><option value="none">なし（必殺用）</option></select></div><div class="field"><label>種族</label><select id="attr"></select></div><div class="field"><label>レアリティ</label><select id="rarity" onchange="updateBalance()"><option>N</option><option>R</option><option>SR</option><option>UR</option><option>AR</option><option>P</option></select></div><div class="field"><label>表示説明</label><input id="desc"></div></div>
+  <label><input id="discardImmune" type="checkbox"> 🛡️ 手札から捨てられない</label>
+  <div class="panel sub"><b>💥 効果（最大3つ）</b><div class="muted">数値は直接編集可能。通常カードでも極端な値は設定できますが、右のバランス警告を確認してください。特殊な設定は「詳細設定JSON」で変更できます。</div><div id="effects"></div><button class="secondary" onclick="addEffectSlot()">＋ 効果枠を追加</button></div>
+  <div class="panel sub"><b>⚖️ バランス調整</b><div class="grid2"><div><div class="score" id="balanceScore">0</div><div class="muted" id="balanceLabel"></div><div class="meter"><div id="balanceBar"></div></div></div><div><div id="balanceAdvice" class="warn">効果を設定すると診断します。</div></div></div><div class="actions" style="margin-top:10px"><button class="secondary" onclick="scaleEffects(.5)">弱体化 ×0.5</button><button class="secondary" onclick="scaleEffects(.75)">少し弱体化 ×0.75</button><button class="secondary" onclick="scaleEffects(1.25)">少し強化 ×1.25</button><button class="secondary" onclick="scaleEffects(1.5)">強化 ×1.5</button></div></div>
+  <div id="specialFields" class="panel sub"><b>🔥 必殺カード設定</b><div class="grid2"><div class="field"><label>使用条件</label><select id="specialCondType"><option value="round">指定ラウンド以降</option><option value="behind">指定点以上負けている</option><option value="ahead">指定点以上勝っている</option><option value="score_at_most">自分の点数が指定点以下</option><option value="score_at_least">自分の点数が指定点以上</option><option value="wins">指定回数勝利</option><option value="used_attr">指定種族を指定枚数使用</option><option value="deck_all_attr">通常デッキ6枚が指定種族</option><option value="deck_all_normal">通常デッキ6枚がN</option><option value="incarnation_in_hand">化身が手札にいる</option><option value="discarded_attr">指定種族が捨てられた</option></select></div><div class="field"><label>条件数値</label><input id="specialCondValue" type="number"></div><div class="field"><label>条件種族</label><select id="specialCondAttr"></select></div></div></div>
+  <div id="evoFields" class="panel sub"><b>✨ 進化設定</b><div class="grid2"><div class="field"><label>進化条件</label><select id="evoType"><option value="round">指定ラウンド以降</option><option value="behind">指定点以上負けている</option><option value="wins">指定回数勝利</option><option value="used_attr">指定種族を指定枚数使用</option><option value="robot_complete">ロボ完成済み</option><option value="incarnation_in_hand">化身が手札にいる</option><option value="incarnation_count">化身が指定種類以上</option><option value="discarded_attr">指定種族が捨てられた</option></select></div><div class="field"><label>条件数値</label><input id="evoValue" type="number"></div><div class="field"><label>条件種族</label><select id="evoAttr"></select></div><div class="field"><label>進化後の名前</label><input id="evoName"></div><div class="field"><label>進化後の手</label><select id="evoHand"><option value="rock">✊</option><option value="scissors">✌️</option><option value="paper">✋</option></select></div><div class="field"><label>進化後レアリティ</label><select id="evoRarity"><option value="same">同じ</option><option>R</option><option>SR</option><option>UR</option><option>AR</option><option>P</option></select></div></div><div class="field"><label>進化データJSON（効果・画像・特殊勝利などを全部編集可能）</label><textarea id="evoJson"></textarea></div></div>
+  <div class="panel sub"><b>🪄 化身・究極進化</b><div class="field"><label>化身能力データJSON</label><textarea id="incJson"></textarea></div><div class="field"><label>究極進化データJSON</label><textarea id="finalJson"></textarea></div><div class="muted">ポーカー役、寄生増殖、名前特効、究極進化の3効果など最新版の項目をここから直接変更できます。空欄なら現在値を維持します。</div></div>
+  <div class="panel sub"><b>📦 収録パック</b><div id="packChoices"></div></div>
+  <details class="panel sub"><summary><b>🧩 完全編集：カードデータJSON</b></summary><div class="muted">ゲームが持つ全設定を直接編集できます。「JSON→フォーム反映」でフォーム側へ反映してから保存できます。</div><textarea id="rawJson" style="width:100%;min-height:330px;margin-top:8px;background:#0f0c13;color:#dff;border:1px solid #4d405e;border-radius:10px;padding:10px"></textarea><div class="actions"><button class="secondary" onclick="applyRawJson()">JSON → フォーム反映</button><button class="secondary" onclick="refreshRawFromForm()">フォーム → JSON更新</button></div></details>
+  <div class="panel sub"><b>🔍 変更プレビュー</b><pre id="diff" style="white-space:pre-wrap;font-size:11px;color:#d8cfea;max-height:260px;overflow:auto"></pre></div>
+  <div class="sticky actions"><button class="primary" onclick="saveCard()">💾 上書き保存</button><button class="secondary" onclick="previewDiff()">🔍 差分確認</button><button class="secondary" onclick="cancelEdit()">キャンセル</button></div><div id="status" class="muted"></div>
+ </div>
+</div></div>
+<script>
+const firebaseConfig={apiKey:"AIzaSyBpC_YgEG6-T70HwSlB3__MDI70WNsxqiQ",authDomain:"janken-kingdom.firebaseapp.com",projectId:"janken-kingdom",storageBucket:"janken-kingdom.firebasestorage.app",messagingSenderId:"748399805019",appId:"1:748399805019:web:b3d6dc75ccf551bef3357e"};
+let auth,db,cards=[],packs=[],editing=null,effectSlots=3,petConfig=null,pets=[],petEditing=null,petAbilityDraft=[]; const $=id=>document.getElementById(id); const clone=o=>JSON.parse(JSON.stringify(o??{})); const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const ATTRS=[['none','無属性'],['vampire','🧛 バンパイア'],['dragon','🐉 ドラゴン'],['beast','🐺 ビースト'],['elf','🧝 エルフ'],['undead','💀 アンデッド'],['machine','🤖 マシン'],['spirit','✨ スピリット'],['knight','🛡️ ナイト'],['mage','🧙 メイジ'],['christmas','🎄 クリスマス'],['dog','🐶 ドッグ'],['god','👑 神'],['animal','🐾 アニマル'],['yoma','👹 妖魔']];
+const EFFECTS=[
+['normal','基本','効果なし',0],['win_plus','ポイント','勝利ボーナス',2],['tie_plus','ポイント','あいこボーナス',2],['lose_plus','ポイント','敗北ボーナス',1],['op_minus_win','妨害','勝利時ポイント破壊',1],['op_minus_any','妨害','相手ポイント減少',1],['own_polarity_swap_win','特殊','極性反転',0],['both_negative_to_positive_win','特殊','負効果祝福化',0],['grant_random_blank','付与','無能力カード覚醒',0],['op_discard_send_incarnation','手札操作','化身送り込み',0],['on_discard_trigger','誘発','捨てられた時に発動',0],['special_add_incarnation','必殺','必殺：化身招来',0],['special_attr_double','必殺','必殺：種族ブースト',0],['special_no_minus','必殺','必殺：減点封鎖',0],['special_attr_no_lose','必殺','必殺：不敗種族',0],['special_attr_cancel_op','必殺','必殺：種族封殺',0],['special_negative_to_plus_target','必殺','必殺：反転祝福',0],['special_both_effects_off','必殺','必殺：完全沈黙',0],['special_force_evolution','必殺','必殺：強制進化',0],['special_temp_random_effects','必殺','必殺：一時覚醒',0],['special_recover_used','必殺','必殺：再起',0],['special_seal_random_op','必殺','必殺：手札封印',0],['special_attr_disguise','必殺','必殺：種族変装',0],['special_targeted_boost','必殺','必殺：対象指定強化',0],['drain_win','バンパイア','ポイント吸収',1],['reveal_on_win','情報','勝ったら手札を見る',0],['reveal_any','情報','手札を1枚見る',0],['reveal_two_win','情報','勝ったら2枚見る',0],['cancel','妨害','相手効果を無効',0],['seal_next','妨害','次ターン効果封印',0],['hand_lock','妨害','次ターン手を封じる',0],['protect','防御','妨害耐性',0],['comeback','逆転','劣勢ボーナス',2],['lead_bonus','攻め','リードボーナス',1],['first_round','タイミング','序盤ボーナス',2],['late_round','タイミング','終盤ボーナス',3],['streak','コンボ','連勝ボーナス',2],['revenge','逆転','リベンジ',2],['same_hand_combo','コンボ','同じ手コンボ',1],['different_hand_combo','コンボ','手チェンジコンボ',1],['attribute_combo','属性','属性コンボ',0],['attr_win_bonus','属性','属性勝利ボーナス',2],['counter_rock','メタ','グー狩り',2],['counter_scissors','メタ','チョキ狩り',2],['counter_paper','メタ','パー狩り',2],['op_high_punish','妨害','高得点メタ',2],['self_low_boost','逆転','ピンチ強化',2],['double_base_win','勝利','基本勝利点2倍',0],['tie_to_win','特殊','あいこ勝利化',0],['loss_cancel','防御','敗北点無効',0],['copy_op','特殊','相手効果コピー',0],['random_plus','運','ランダム加点',3],['trash_bonus','トラッシュ','トラッシュ枚数ボーナス',1],['unique_attr','属性','多属性ボーナス',2],['robot_assemble','構築','ロボ完成',5],['swap_hand','手札操作','手札交換',0],['recycle_used','手札操作','リサイクル再使用',0],['copy_hand_effect','コピー','手札効果コピー',0],['custom_recipe','自由設計','自由効果',0]
+];
+const POWER={normal:0,win_plus:1,tie_plus:.8,lose_plus:.7,op_minus_win:1.1,op_minus_any:1.5,own_polarity_swap_win:3,both_negative_to_positive_win:3,grant_random_blank:3.5,op_discard_send_incarnation:4,on_discard_trigger:2.5,special_add_incarnation:4,special_attr_double:4,special_no_minus:3.5,special_attr_no_lose:4,special_attr_cancel_op:4.5,special_negative_to_plus_target:4,special_both_effects_off:5,special_force_evolution:5,special_temp_random_effects:5,special_recover_used:4,special_seal_random_op:4.5,special_attr_disguise:3,special_targeted_boost:5,drain_win:1.8,reveal_on_win:1.2,reveal_any:1.5,reveal_two_win:1.8,cancel:3,seal_next:3.2,hand_lock:2.5,protect:2.3,comeback:1,lead_bonus:1,first_round:.8,late_round:.8,streak:1,revenge:1,same_hand_combo:.8,different_hand_combo:.8,attribute_combo:1.5,attr_win_bonus:1,counter_rock:1,counter_scissors:1,counter_paper:1,op_high_punish:1.2,self_low_boost:1,double_base_win:2.5,tie_to_win:3.5,loss_cancel:2.5,copy_op:3.5,random_plus:.7,trash_bonus:.8,unique_attr:1.2,robot_assemble:2,swap_hand:3,recycle_used:3,copy_hand_effect:3.5,custom_recipe:3};
+const RANK={N:0,R:1,SR:2,UR:3,AR:4,P:5},TARGET={N:3,R:5,SR:8,UR:12,AR:16,P:20};
+function optAttrs(){return ATTRS.map(([v,n])=>`<option value="${v}">${n}</option>`).join('')};
+window.addEventListener('DOMContentLoaded',()=>{['attr','specialCondAttr','evoAttr'].forEach(id=>$(id).innerHTML=optAttrs());firebase.initializeApp(firebaseConfig);auth=firebase.auth();db=firebase.firestore();auth.onAuthStateChanged(u=>{if(u){$('loginPanel').classList.add('hidden');$('main').classList.remove('hidden');watchData()}else{$('loginPanel').classList.remove('hidden');$('main').classList.add('hidden')}})});
+async function login(){try{$('loginStatus').textContent='ログイン中…';await auth.signInWithEmailAndPassword($('email').value.trim(),$('password').value);$('loginStatus').textContent=''}catch(e){$('loginStatus').innerHTML='<span class="err">ログイン失敗：'+esc(e.message)+'</span>'}} async function logout(){await auth.signOut()}
+function watchData(){
+ db.collection('cards').onSnapshot(s=>{cards=s.docs.map(d=>({id:d.id,...d.data()}));renderList()},e=>$('list').innerHTML='<div class="err">'+esc(e.message)+'</div>');
+ db.collection('packs').onSnapshot(s=>{packs=s.docs.map(d=>({id:d.id,...d.data()}));renderPackChoices()});
+ db.collection('packs').doc('__pet_market_v3').onSnapshot(s=>{
+   if(!s.exists){petConfig={eggs:[],official:[],characters:[]};pets=[];renderPetList();return}
+   petConfig={...s.data()};if(!Array.isArray(petConfig.characters))petConfig.characters=[];
+   pets=petConfig.characters.map(x=>clone(x));renderPetList();
+ },e=>{const p=$('petAudit');if(p)p.innerHTML='<span class="err">ペット読込失敗：'+esc(e.message)+'</span>'});
+}
+function cardEffects(c){return Array.isArray(c?.effects)&&c.effects.length?c.effects:[{kind:c?.kind||'normal',value:c?.value??0,effectConfig:c?.effectConfig||{},effectRecipe:c?.effectRecipe||null}]}
+function powerOfEffect(e){let base=POWER[e.kind]??2;let v=Math.abs(Number(e.value)||0);if(v)base*=Math.max(.5,v);if(e.kind==='drain_win')base*=1.4;if(e.kind.startsWith('special_'))base*=1.25;return base}
+function balanceOf(c){let p=cardEffects(c).reduce((s,e)=>s+powerOfEffect(e),0);if(c?.discardImmune)p+=1;if(c?.specialWin&&c.specialWin!=='none')p+=5;if(c?.evolution)p+=2;if(c?.incarnationAbility?.enabled)p+=2;if(c?.cardType==='special')p+=1;return Math.round(p*10)/10}
+function renderList(){let q=$('search').value.trim().toLowerCase();let a=cards.filter(c=>!q||[c.name,c.desc,c.attr,c.rarity,...cardEffects(c).map(e=>e.kind)].join(' ').toLowerCase().includes(q));let s=$('sort').value;a.sort((x,y)=>s==='name'?String(x.name||'').localeCompare(String(y.name||''),'ja'):s==='balance_desc'?balanceOf(y)-balanceOf(x):s==='balance_asc'?balanceOf(x)-balanceOf(y):(RANK[y.rarity]??0)-(RANK[x.rarity]??0)||balanceOf(y)-balanceOf(x));$('list').innerHTML=a.map(c=>`<div class="card"><b>${esc(c.name||c.id)} <span class="tag">${esc(c.rarity||'N')}</span> <span class="tag">強さ ${balanceOf(c)}</span></b><small>${esc(c.attr||'none')} / ${cardEffects(c).map(e=>EFFECTS.find(x=>x[0]===e.kind)?.[2]||e.kind).join(' + ')}</small><button class="secondary" style="width:100%;margin-top:7px" onclick="editCard('${String(c.id).replace(/'/g,"\\'")}')">✏️ 編集</button></div>`).join('')||'<div class="muted">カードなし</div>'}
+function effectRow(i,e={kind:'normal',value:0,effectConfig:{},effectRecipe:null}){return `<div class="effectRow" data-index="${i}"><div class="grid3"><div class="field"><label>効果${i+1}</label><select class="ekind" onchange="effectChanged(this)">${EFFECTS.map(x=>`<option value="${x[0]}" ${x[0]===e.kind?'selected':''}>${x[1]}｜${x[2]}</option>`).join('')}</select></div><div class="field"><label>数値</label><input class="eval" type="number" step="1" value="${Number(e.value)||0}" oninput="updateBalance();previewDiff()"></div><div class="field"><label>簡易操作</label><div class="actions"><button class="secondary" type="button" onclick="nudgeEffect(this,-1)">−1</button><button class="secondary" type="button" onclick="nudgeEffect(this,1)">＋1</button></div></div></div><div class="field"><label>詳細設定JSON（対象種族・条件・付与候補など）</label><textarea class="ecfg" oninput="previewDiff()">${esc(JSON.stringify(e.effectConfig||{},null,2))}</textarea></div><div class="field ${e.kind==='custom_recipe'?'':'hidden'} recipeBox"><label>自由効果 recipe JSON</label><textarea class="erecipe" oninput="previewDiff()">${esc(JSON.stringify(e.effectRecipe||{},null,2))}</textarea></div></div>`}
+function renderEffects(entries){effectSlots=Math.max(3,Math.min(3,entries.length||1));$('effects').innerHTML=Array.from({length:effectSlots},(_,i)=>effectRow(i,entries[i]||{kind:'normal',value:0,effectConfig:{}})).join('');updateBalance()}
+function addEffectSlot(){alert('ゲーム側は通常カード1枚につき最大3効果です。現在すでに3枠あります。')}
+function effectChanged(sel){let row=sel.closest('.effectRow');row.querySelector('.recipeBox').classList.toggle('hidden',sel.value!=='custom_recipe');let spec=EFFECTS.find(x=>x[0]===sel.value);let val=row.querySelector('.eval');if(spec&&Number(val.value)===0&&spec[3])val.value=spec[3];updateBalance();previewDiff()}
+function nudgeEffect(btn,d){let v=btn.closest('.effectRow').querySelector('.eval');v.value=(Number(v.value)||0)+d;updateBalance();previewDiff()}
+function readEffects(){return [...document.querySelectorAll('.effectRow')].map(r=>{let kind=r.querySelector('.ekind').value,value=Number(r.querySelector('.eval').value)||0,cfg={};try{cfg=JSON.parse(r.querySelector('.ecfg').value||'{}')}catch(e){throw Error('詳細設定JSONが壊れています：'+e.message)}let recipe=null;if(kind==='custom_recipe'){try{recipe=JSON.parse(r.querySelector('.erecipe').value||'null')}catch(e){throw Error('自由効果recipe JSONが壊れています：'+e.message)}}return {kind,value,effectConfig:cfg,effectRecipe:recipe}}).filter((e,i)=>i===0||e.kind!=='normal')}
+function editCard(id){let c=cards.find(x=>String(x.id)===String(id));if(!c)return;editing=clone(c);$('editor').classList.remove('hidden');$('editingLabel').textContent=c.name||id;$('name').value=c.name||'';$('cardType').value=c.cardType||'normal';$('hand').value=c.hand||((c.cardType==='special')?'none':'rock');$('attr').value=c.attr||'none';$('rarity').value=c.rarity||'N';$('desc').value=c.desc||'';$('discardImmune').checked=!!c.discardImmune;renderEffects(cardEffects(c));let sc=c.specialCondition||{};$('specialCondType').value=sc.type||'round';$('specialCondValue').value=sc.value??1;$('specialCondAttr').value=sc.attr||'none';let e=c.evolution||{};$('evoType').value=e.condition?.type||'round';$('evoValue').value=e.condition?.value??3;$('evoAttr').value=e.condition?.attr||'none';$('evoName').value=e.name||'';$('evoHand').value=e.hand||'rock';$('evoRarity').value=e.rarity||'same';$('evoJson').value=JSON.stringify(e,null,2);$('incJson').value=JSON.stringify(c.incarnationAbility||null,null,2);$('finalJson').value=JSON.stringify(e.final||null,null,2);$('rawJson').value=JSON.stringify(c,null,2);syncUI();renderPackChoices();previewDiff();$('editor').scrollIntoView({behavior:'smooth'})}
+function syncUI(){$('specialFields').classList.toggle('hidden',$('cardType').value!=='special');$('evoFields').classList.toggle('hidden',$('cardType').value!=='evolution')}
+function renderPackChoices(){let root=$('packChoices');if(!root)return;let selected=new Set(editing?.packs||[]);let list=[{id:'all_mix',name:'キングダム常設ミックス',permanent:true},...packs.filter(p=>p.id!=='all_mix')],seen=new Set();root.innerHTML=list.filter(p=>!seen.has(p.id)&&seen.add(p.id)).map(p=>`<label style="display:block;margin:7px 0;padding:8px;border:1px solid #4e405e;border-radius:10px;background:#17121f"><input type="checkbox" name="editPack" value="${esc(p.id)}" ${selected.has(p.id)?'checked':''}> 📦 ${esc(p.name||p.id)}${p.permanent?' <span class="tag">常設</span>':''}</label>`).join('')||'<div class="muted">パック情報取得中</div>'}
+function parseMaybe(id,def){let t=$(id).value.trim();if(!t)return def;try{return JSON.parse(t)}catch(e){throw Error(id+' のJSONが壊れています：'+e.message)}}
+function buildCard(){if(!editing)throw Error('カードを選んでください');let c=clone(editing);c.name=$('name').value.trim()||c.name;c.cardType=$('cardType').value;c.hand=c.cardType==='special'?'none':$('hand').value;c.attr=$('attr').value;c.rarity=$('rarity').value;c.desc=$('desc').value;c.discardImmune=$('discardImmune').checked;c.packs=c.rarity==='P'?[]:[...document.querySelectorAll('input[name="editPack"]:checked')].map(x=>x.value);let es=readEffects();c.effects=es;c.kind=es[0]?.kind||'normal';c.value=es[0]?.value||0;c.effectConfig=es[0]?.effectConfig||{};c.effectRecipe=es[0]?.effectRecipe||null;if(c.cardType==='special')c.specialCondition={type:$('specialCondType').value,value:Number($('specialCondValue').value)||0,attr:$('specialCondAttr').value};if(c.cardType==='evolution'){let e=parseMaybe('evoJson',clone(c.evolution||{}))||{};e.condition={type:$('evoType').value,value:Number($('evoValue').value)||0,attr:$('evoAttr').value};e.name=$('evoName').value.trim()||e.name||'進化形';e.hand=$('evoHand').value;e.rarity=$('evoRarity').value==='same'?(e.rarity||c.rarity):$('evoRarity').value;let fj=parseMaybe('finalJson',e.final||null);if(fj!==null)e.final=fj;c.evolution=e}else if(c.cardType!=='evolution'&&editing.evolution===undefined)c.evolution=null;let ia=parseMaybe('incJson',c.incarnationAbility||null);if(ia!==null)c.incarnationAbility=ia;c.id=editing.id;return c}
+function updateBalance(){if(!editing)return;try{let c=buildCard(),score=balanceOf(c),target=TARGET[c.rarity]||8,ratio=score/target;$('balanceScore').textContent=score+' / 目安 '+target;$('balanceBar').style.width=Math.min(100,Math.max(3,ratio*60))+'%';let label=ratio<.55?'かなり控えめ':ratio<.85?'やや控えめ':ratio<1.25?'おおむね適正':ratio<1.7?'かなり強め':'規格外クラス';$('balanceLabel').textContent=(c.rarity||'N')+'基準では「'+label+'」';let adv=[];if(ratio>1.7)adv.push('⚠️ 同レア帯を大きく上回ります。対戦用なら条件を厳しくするか数値を下げるのがおすすめ。');if(cardEffects(c).length>=3)adv.push('3効果カードなので、各効果が弱くても組み合わせで強くなりやすいです。');if(cardEffects(c).some(e=>Math.abs(Number(e.value)||0)>=10))adv.push('数値10以上の効果があります。究極進化向けの強さです。');if(cardEffects(c).some(e=>['cancel','seal_next','special_both_effects_off','special_targeted_boost'].includes(e.kind)))adv.push('効果無効・封印系はポイント換算以上に強いので注意。');$('balanceAdvice').innerHTML=adv.length?adv.map(esc).join('<br>'):'✅ 大きな危険サインはありません。'}catch(e){$('balanceAdvice').textContent=e.message}}
+function scaleEffects(mult){document.querySelectorAll('.effectRow .eval').forEach(v=>{let n=Number(v.value)||0;v.value=Math.round(n*mult)});updateBalance();previewDiff()}
+function simpleDiff(a,b,path=''){let out=[];let keys=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);for(let k of keys){let p=path?path+'.'+k:k,va=a?.[k],vb=b?.[k];if(JSON.stringify(va)===JSON.stringify(vb))continue;if(va&&vb&&typeof va==='object'&&typeof vb==='object'&&!Array.isArray(va)&&!Array.isArray(vb))out.push(...simpleDiff(va,vb,p));else out.push(`${p}: ${JSON.stringify(va)} → ${JSON.stringify(vb)}`)}return out}
+function previewDiff(){if(!editing)return;try{$('diff').textContent=simpleDiff(editing,buildCard()).slice(0,120).join('\n')||'変更なし'}catch(e){$('diff').textContent='⚠️ '+e.message}}
+function refreshRawFromForm(){try{$('rawJson').value=JSON.stringify(buildCard(),null,2);previewDiff()}catch(e){alert(e.message)}}
+function applyRawJson(){try{let c=JSON.parse($('rawJson').value);if(String(c.id)!==String(editing.id))throw Error('カードIDは変更できません');editing=clone(c);editCard(c.id);$('status').innerHTML='<span class="ok">✅ JSONをフォームへ反映しました。まだFirebaseには保存していません。</span>'}catch(e){$('status').innerHTML='<span class="err">JSON反映失敗：'+esc(e.message)+'</span>'}}
+async function saveCard(){try{let c=buildCard();let same=cards.find(x=>String(x.id)!==String(c.id)&&String(x.name||'').trim().toLowerCase()===String(c.name||'').trim().toLowerCase());if(same)throw Error('同じ名前のカードがすでにあります。');$('status').textContent='保存中…';await db.collection('cards').doc(c.id).set(c);editing=clone(c);$('rawJson').value=JSON.stringify(c,null,2);$('status').innerHTML='<span class="ok">✅ 保存しました。未知の設定項目も保持したまま更新済みです。</span>';previewDiff()}catch(e){$('status').innerHTML='<span class="err">保存できません：'+esc(e.message)+'</span>'}}
+function runBalanceAudit(){let counts={weak:0,ok:0,strong:0,extreme:0},top=[...cards].sort((a,b)=>balanceOf(b)-balanceOf(a)).slice(0,10);for(let c of cards){let r=balanceOf(c)/(TARGET[c.rarity]||8);if(r<.55)counts.weak++;else if(r<1.25)counts.ok++;else if(r<1.7)counts.strong++;else counts.extreme++}$('audit').innerHTML=`診断：控えめ ${counts.weak}枚 / 標準 ${counts.ok}枚 / 強め ${counts.strong}枚 / 規格外 ${counts.extreme}枚<br>強さ上位：${top.map(c=>`${esc(c.name||c.id)}(${balanceOf(c)})`).join('、')}`}
+function cancelEdit(){editing=null;$('editor').classList.add('hidden');$('status').textContent=''}
+
+// ===== 最新ペット 自動バランス編集 =====
+const PET_EFFECT_POWER={
+ add_win:1,win_plus:1,tie_plus:.8,lose_plus:.7,op_minus_win:1.2,op_minus_any:1.5,
+ comeback:1.2,double_base_win:3,self_low_boost:1.2,tie_to_win:4,loss_cancel:3,reveal_any:1.5,
+ pet_score_swap:9,pet_win_low_score:12,pet_steal_half:10,pet_score_double:10,
+ pet_comeback_overwrite:11,pet_zero_op_on_win:12,pet_copy_op_plus:10,pet_op_half:9,
+ pet_win_if_behind:13,pet_equalize_plus:10,heal:1.3,revive10:5,aoe_fixed:1.8,
+ atk_up:1.4,enemy_atk_down:1.4,enemy_def_down:1.3,shield:3,reflect:4,remove_choice:3
+};
+function petBaseStats(p){let s=p?.stats||{};return {hp:Math.max(1,Number(s.hp)||100),atk:Math.max(0,Number(s.atk)||10),def:Math.max(0,Number(s.def)||5),spd:Math.max(0,Number(s.spd)||10)}}
+function petAbilityAtLevel(a,lv=15){
+ let unlock=Math.max(2,Number(a?.level)||2),base=Number(a?.value)||0,every=Math.max(1,Number(a?.every)||99),grow=Number(a?.grow)||0;
+ if(lv<unlock)return 0;return base+Math.floor(Math.max(0,lv-unlock)/every)*grow;
+}
+function petAbilityPower(a,lv=15){
+ const v=Math.abs(petAbilityAtLevel(a,lv)),kind=String(a?.kind||'');
+ let w=PET_EFFECT_POWER[kind]??2;
+ if(kind.startsWith('pet_'))w=Math.max(w,7);
+ return w*(v?Math.max(1,v):1);
+}
+function petBattleSkillPower(p){
+ const b=p?.battleSkill||{},t=String(b.type||'none'),v=Math.abs(Number(b.value)||0);
+ if(!t||t==='none')return 0;
+ let w=PET_EFFECT_POWER[t]??2.2;return w*Math.max(1,v||1);
+}
+function petPowerRaw(p,lv=15){
+ const s=petBaseStats(p);
+ const stat=s.hp*.10+s.atk*2+s.def*1.65+s.spd*1.15;
+ const ability=(Array.isArray(p?.abilities)?p.abilities:[]).reduce((n,a)=>n+petAbilityPower(a,lv),0);
+ const battle=petBattleSkillPower(p);
+ const evo=Math.min(4,(Array.isArray(p?.evolutions)?p.evolutions.length:0)*.7);
+ return Math.round((stat+ability+battle+evo)*10)/10;
+}
+function petMedian(){
+ const a=pets.map(p=>petPowerRaw(p,15)).filter(Number.isFinite).sort((a,b)=>a-b);
+ if(!a.length)return 1;const i=Math.floor(a.length/2);return a.length%2?a[i]:(a[i-1]+a[i])/2;
+}
+function petPowerInfo(p){
+ const score=petPowerRaw(p,15),med=Math.max(1,petMedian()),ratio=score/med;
+ let level='ok',label='✅ 標準';
+ if(ratio>=1.65){level='danger';label='🚨 強すぎる'}
+ else if(ratio>=1.28){level='strong';label='⚠️ 強め'}
+ else if(ratio<.68){level='low';label='🔹 控えめ'}
+ return {score,med,ratio,level,label};
+}
+function petAbilityText(p){
+ return (Array.isArray(p?.abilities)?p.abilities:[]).map(a=>`${a.name||a.kind||'能力'} Lv${a.level||2} 値${petAbilityAtLevel(a,15)}`).join(' / ');
+}
+function petEggNames(id){
+ const names=[];for(const e of (petConfig?.eggs||[])){if((e.pool||[]).some(x=>String(x.charId)===String(id))||(e.chars||[]).some(x=>String(x.id)===String(id)))names.push(e.name||'卵')}
+ return names;
+}
+function renderPetList(){
+ const root=$('petList');if(!root)return;
+ const q=($('petSearch')?.value||'').trim().toLowerCase(),sort=$('petSort')?.value||'power_desc',filter=$('petFilter')?.value||'all';
+ let a=(pets||[]).filter(p=>!q||[p.name,p.species,p.rarity,petAbilityText(p),...petEggNames(p.id)].join(' ').toLowerCase().includes(q));
+ if(filter==='danger')a=a.filter(p=>petPowerInfo(p).level==='danger');
+ if(filter==='strong')a=a.filter(p=>['danger','strong'].includes(petPowerInfo(p).level));
+ a.sort((x,y)=>sort==='name'?String(x.name||'').localeCompare(String(y.name||''),'ja'):sort==='power_asc'?petPowerRaw(x)-petPowerRaw(y):sort==='level15'?((y.abilities||[]).reduce((n,z)=>n+Math.abs(petAbilityAtLevel(z,15)),0)-(x.abilities||[]).reduce((n,z)=>n+Math.abs(petAbilityAtLevel(z,15)),0)):petPowerRaw(y)-petPowerRaw(x));
+ const med=petMedian(),infos=pets.map(p=>petPowerInfo(p));
+ $('petCount').textContent=pets.length;$('petDangerCount').textContent=infos.filter(x=>x.level==='danger').length;$('petStrongCount').textContent=infos.filter(x=>x.level==='strong').length;$('petMedianScore').textContent=Math.round(med*10)/10;
+ root.innerHTML=a.map(p=>{const s=petBaseStats(p),i=petPowerInfo(p),eg=petEggNames(p.id);return `<div class="pet-row ${i.level==='danger'?'danger':i.level==='strong'?'strong':'ok'}"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div><b>${esc(p.name||p.id)} <span class="pet-badge">${esc(p.rarity||'RP')}</span></b><div class="pet-mini">${esc(p.species||'')} ${eg.length?'／🥚 '+eg.map(esc).join('・'):''}</div></div><div style="text-align:right"><div class="pet-score">${i.score}</div><div class="pet-mini">${i.label} ×${i.ratio.toFixed(2)}</div></div></div><div class="pet-mini" style="margin-top:5px">❤️${s.hp}　⚔️${s.atk}　🛡️${s.def}　💨${s.spd}<br>能力 ${(p.abilities||[]).length}個：${esc(petAbilityText(p)||'なし')}</div><button class="secondary" style="width:100%;margin-top:7px" onclick="editPet('${String(p.id).replace(/'/g,"\\'")}')">✏️ このペットを編集</button></div>`}).join('')||'<div class="muted">該当するペットはいません。</div>';
+}
+function runPetBalanceAudit(){
+ const med=petMedian(),sorted=[...pets].sort((a,b)=>petPowerRaw(b)-petPowerRaw(a)),danger=sorted.filter(p=>petPowerInfo(p).level==='danger');
+ $('petAudit').innerHTML=`基準中央値：<b>${med.toFixed(1)}</b> ／ 🚨強すぎる ${danger.length}体 ／ ⚠️強め ${sorted.filter(p=>petPowerInfo(p).level==='strong').length}体${danger.length?`<br>要確認：${danger.slice(0,8).map(p=>`${esc(p.name)}(${petPowerRaw(p)})`).join('、')}`:'<br>✅ 極端に強いペットは検出されませんでした。'}`;
+}
+async function reloadPetConfig(){
+ try{const s=await db.collection('packs').doc('__pet_market_v3').get();if(!s.exists)throw Error('ペット設定がありません');petConfig={...s.data()};pets=(petConfig.characters||[]).map(x=>clone(x));renderPetList();runPetBalanceAudit();$('petStatus').textContent='最新ペットを再読み込みしました。'}catch(e){$('petAudit').innerHTML='<span class="err">'+esc(e.message)+'</span>'}
+}
+function petAbilityRow(a,i){
+ return `<div class="pet-ability"><div class="pet-ability-grid"><div class="field"><label>能力ID</label><input value="${esc(a.kind||'add_win')}" onchange="petAbilityDraft[${i}].kind=this.value;updatePetBalancePreview()"></div><div class="field"><label>解放Lv</label><input type="number" min="2" value="${Math.max(2,Number(a.level)||2)}" onchange="petAbilityDraft[${i}].level=Number(this.value)||2;updatePetBalancePreview()"></div><div class="field"><label>初期値</label><input type="number" value="${Number(a.value)||0}" onchange="petAbilityDraft[${i}].value=Number(this.value)||0;updatePetBalancePreview()"></div><div class="field"><label>何Lvごと / 成長</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px"><input type="number" min="1" value="${Math.max(1,Number(a.every)||99)}" onchange="petAbilityDraft[${i}].every=Number(this.value)||99;updatePetBalancePreview()"><input type="number" value="${Number(a.grow)||0}" onchange="petAbilityDraft[${i}].grow=Number(this.value)||0;updatePetBalancePreview()"></div></div><button class="danger" onclick="petAbilityDraft.splice(${i},1);renderPetAbilities();updatePetBalancePreview()">削除</button></div><div class="pet-mini">Lv15時の値：<b>${petAbilityAtLevel(a,15)}</b> ／ ${esc(a.name||a.kind||'能力')}</div></div>`;
+}
+function renderPetAbilities(){$('petAbilities').innerHTML=petAbilityDraft.map(petAbilityRow).join('')||'<div class="muted">能力なし</div>'}
+function addPetAbility(){petAbilityDraft.push({level:2,kind:'add_win',name:'新しい能力',value:1,every:3,grow:1});renderPetAbilities();updatePetBalancePreview()}
+function editPet(id){
+ const p=pets.find(x=>String(x.id)===String(id));if(!p)return;
+ petEditing=clone(p);petAbilityDraft=clone(Array.isArray(p.abilities)?p.abilities:[]);
+ $('petEditor').classList.remove('hidden');$('petEditingLabel').textContent=p.name||p.id;$('petName').value=p.name||'';$('petSpecies').value=p.species||'';$('petHand').value=['rock','scissors','paper'].includes(p.hand)?p.hand:'paper';$('petRarity').value=['RP','SRP','URP','ARP'].includes(p.rarity)?p.rarity:'RP';
+ const s=petBaseStats(p);$('petHP').value=s.hp;$('petATK').value=s.atk;$('petDEF').value=s.def;$('petSPD').value=s.spd;$('petBattleSkillType').value=p.battleSkill?.type||'none';$('petBattleSkillValue').value=Number(p.battleSkill?.value)||0;
+ renderPetAbilities();$('petEvolutionSummary').innerHTML=(p.evolutions||[]).map(e=>`Lv.${Number(e.level)||2} → <b>${esc(e.name||'名前維持')}</b>${e.species?' ／ '+esc(e.species):''}`).join('<br>')||'進化なし';
+ $('petRawJson').value=JSON.stringify(p,null,2);updatePetBalancePreview();$('petEditor').scrollIntoView({behavior:'smooth'});
+}
+function buildPet(){
+ if(!petEditing)throw Error('ペットを選んでください');
+ const p=clone(petEditing);p.name=$('petName').value.trim()||p.name;p.species=$('petSpecies').value.trim()||p.species;p.hand=$('petHand').value;p.rarity=$('petRarity').value;
+ p.stats={...(p.stats||{}),hp:Math.max(1,Math.floor(Number($('petHP').value)||1)),atk:Math.max(0,Math.floor(Number($('petATK').value)||0)),def:Math.max(0,Math.floor(Number($('petDEF').value)||0)),spd:Math.max(0,Math.floor(Number($('petSPD').value)||0))};
+ p.battleSkill={...(p.battleSkill||{}),type:$('petBattleSkillType').value.trim()||'none',value:Number($('petBattleSkillValue').value)||0};
+ p.abilities=clone(petAbilityDraft);p.id=petEditing.id;return p;
+}
+function updatePetBalancePreview(){
+ if(!petEditing)return;
+ try{
+  const p=buildPet(),i=petPowerInfo(p),cls=i.level==='danger'?'pet-power-danger':i.level==='strong'?'pet-power-strong':i.level==='low'?'pet-power-low':'pet-power-ok';
+  const old=petPowerRaw(petEditing),ability=(p.abilities||[]).reduce((n,a)=>n+petAbilityPower(a,15),0);
+  $('petPowerAdvice').className='warn '+cls;$('petPowerAdvice').innerHTML=`<b>${i.label}</b>　推定強さ <b>${i.score}</b>（全ペット中央値 ${i.med.toFixed(1)} / ×${i.ratio.toFixed(2)}）<br>編集前 ${old} → 現在 ${i.score} ／ Lv15能力寄与 ${ability.toFixed(1)}${i.level==='danger'?'<br>⚠️ 統計上かなり突出しています。自動調整または能力値の見直しがおすすめです。':''}`;
+  $('petRawJson').value=JSON.stringify(p,null,2);
+ }catch(e){$('petPowerAdvice').textContent='⚠️ '+e.message}
+}
+function scalePetStats(mult){['petHP','petATK','petDEF','petSPD'].forEach(id=>{const e=$(id);e.value=Math.max(id==='petHP'?1:0,Math.round((Number(e.value)||0)*mult))});updatePetBalancePreview()}
+function autoBalancePetAbilitiesOnly(){
+ if(!petEditing)return;
+ let p=buildPet(),med=petMedian(),target=med*1.08,raw=petPowerRaw(p),statOnly=petPowerRaw({...p,abilities:[],battleSkill:{type:'none',value:0}});
+ if(raw<=target)return $('petStatus').innerHTML='<span class="ok">能力値はすでに標準範囲です。</span>';
+ let allowed=Math.max(0,target-statOnly),cur=(p.abilities||[]).reduce((n,a)=>n+petAbilityPower(a,15),0)+petBattleSkillPower(p),ratio=cur>0?Math.min(1,allowed/cur):1;
+ petAbilityDraft=petAbilityDraft.map(a=>({...a,value:Math.round((Number(a.value)||0)*ratio),grow:Math.round((Number(a.grow)||0)*ratio)}));
+ renderPetAbilities();updatePetBalancePreview();$('petStatus').innerHTML='<span class="ok">✅ 能力値を標準付近へ自動調整しました。保存前に内容を確認してください。</span>';
+}
+function autoBalanceCurrentPet(){
+ if(!petEditing)return;
+ let p=buildPet(),med=petMedian(),target=med*1.08,score=petPowerRaw(p);
+ if(score<=target)return $('petStatus').innerHTML='<span class="ok">このペットはすでに標準範囲です。</span>';
+ let ratio=Math.max(.45,Math.min(.98,target/score));
+ ['petHP','petATK','petDEF','petSPD'].forEach(id=>{const e=$(id);e.value=Math.max(id==='petHP'?1:0,Math.round((Number(e.value)||0)*Math.sqrt(ratio)))});
+ petAbilityDraft=petAbilityDraft.map(a=>({...a,value:Math.round((Number(a.value)||0)*ratio),grow:Math.round((Number(a.grow)||0)*ratio)}));
+ renderPetAbilities();updatePetBalancePreview();$('petStatus').innerHTML='<span class="ok">✅ 強さ中央値付近へ自動調整しました。保存前に能力と数値を確認してください。</span>';
+}
+function syncPetLegacy(c){
+ if(!petConfig)return;
+ petConfig.characters=Array.isArray(petConfig.characters)?petConfig.characters:[];
+ const ix=petConfig.characters.findIndex(x=>String(x.id)===String(c.id));if(ix>=0)petConfig.characters[ix]=clone(c);else petConfig.characters.push(clone(c));
+ for(const e of (petConfig.eggs||[])){
+  if(Array.isArray(e.chars))e.chars=e.chars.map(old=>String(old?.id)===String(c.id)?{...clone(c),chance:old.chance}:old);
+ }
+}
+async function savePet(){
+ try{
+  const p=buildPet();$('petStatus').textContent='保存中…';syncPetLegacy(p);
+  await db.collection('packs').doc('__pet_market_v3').set(petConfig,{merge:false});
+  const ix=pets.findIndex(x=>String(x.id)===String(p.id));if(ix>=0)pets[ix]=clone(p);else pets.push(clone(p));
+  petEditing=clone(p);$('petRawJson').value=JSON.stringify(p,null,2);renderPetList();runPetBalanceAudit();updatePetBalancePreview();$('petStatus').innerHTML='<span class="ok">✅ ペットを保存しました。characters と卵内の旧互換データを同時更新しました。</span>';
+ }catch(e){$('petStatus').innerHTML='<span class="err">保存できません：'+esc(e.message)+'</span>'}
+}
+function refreshPetRawJson(){try{$('petRawJson').value=JSON.stringify(buildPet(),null,2)}catch(e){alert(e.message)}}
+function applyPetRawJson(){
+ try{
+  const p=JSON.parse($('petRawJson').value);if(String(p.id)!==String(petEditing.id))throw Error('ペットIDは変更できません');
+  const ix=pets.findIndex(x=>String(x.id)===String(p.id));if(ix>=0)pets[ix]=clone(p);petEditing=clone(p);editPet(p.id);$('petStatus').innerHTML='<span class="ok">✅ JSONをフォームへ反映しました。まだFirebaseには保存していません。</span>';
+ }catch(e){$('petStatus').innerHTML='<span class="err">JSON反映失敗：'+esc(e.message)+'</span>'}
+}
+function cancelPetEdit(){petEditing=null;petAbilityDraft=[];$('petEditor').classList.add('hidden');$('petStatus').textContent=''}
+
+</script></body></html>
