@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17121f">
+<title>Firebase診断 - じゃんけんキングダム</title>
+<style>
+:root{--bg:#120f17;--card:#21192c;--line:#534568;--text:#fff8ee;--muted:#c5b9cf;--ok:#75e39d;--bad:#ff8585;--warn:#ffd36b;--blue:#81b9ff}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at top,#342642 0,#17121f 46%,#0c0910 100%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
+.wrap{max-width:760px;margin:auto;padding:18px 12px 40px}
+h1{font-size:24px;margin:5px 0 4px}
+.sub{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:14px}
+.card{background:linear-gradient(180deg,#2a2138ee,#1c1725ee);border:1px solid var(--line);border-radius:18px;padding:14px;margin:10px 0;box-shadow:0 12px 28px #0005}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #443750}
+.row:last-child{border-bottom:0}
+.label{font-weight:900}
+.status{font-size:12px;text-align:right;max-width:58%}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}.info{color:var(--blue)}
+button,input{font:inherit}
+button{border:0;border-radius:13px;padding:12px 14px;font-weight:900;cursor:pointer}
+.primary{width:100%;background:linear-gradient(135deg,#ffe17c,#f0ac43);color:#291a05}
+.secondary{width:100%;background:#3a304a;color:white;border:1px solid #5c4f70;margin-top:8px}
+input{width:100%;padding:13px;border-radius:12px;border:1px solid #66557a;background:#fffeb5;color:#151515;margin-top:7px}
+.log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.55;white-space:pre-wrap;word-break:break-word;background:#0d0a11;border:1px solid #40354d;border-radius:12px;padding:10px;max-height:360px;overflow:auto}
+.small{font-size:10px;color:var(--muted);line-height:1.6}
+.badbox{background:#3a171c;border:1px solid #7d343e;padding:10px;border-radius:12px;color:#ffb0b0;margin-top:8px}
+.okbox{background:#163223;border:1px solid #356b4c;padding:10px;border-radius:12px;color:#bff0ce;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🔥 Firebase診断ページ</h1>
+<div class="sub">
+じゃんけんキングダム本体とは別に、Firebaseだけをテストします。<br>
+「全部診断」を押すと、SDK → 初期化 → Auth → Firestore の順に確認します。
+</div>
+
+<div class="card">
+  <div class="row"><div class="label">① Firebase SDK</div><div id="stSdk" class="status warn">未確認</div></div>
+  <div class="row"><div class="label">② Firebase初期化</div><div id="stInit" class="status warn">未確認</div></div>
+  <div class="row"><div class="label">③ Authentication</div><div id="stAuth" class="status warn">未確認</div></div>
+  <div class="row"><div class="label">④ Firestore</div><div id="stDb" class="status warn">未確認</div></div>
+  <div class="row"><div class="label">⑤ 現在の認証状態</div><div id="stUser" class="status warn">未確認</div></div>
+  <button class="primary" onclick="runAll()">🔎 全部診断する</button>
+  <button class="secondary" onclick="location.reload()">🔄 ページを再読み込み</button>
+</div>
+
+<div class="card">
+  <h2 style="font-size:18px;margin-top:0">🧑‍🏫 先生ログインテスト</h2>
+  <div class="small">診断が③までOKになってから試してください。パスワードはこのページ内だけでFirebase認証に送信され、保存しません。</div>
+  <input id="email" type="email" autocomplete="username" placeholder="先生用メールアドレス">
+  <input id="password" type="password" autocomplete="current-password" placeholder="パスワード">
+  <button class="primary" style="margin-top:9px" onclick="testLogin()">ログインだけ試す</button>
+  <div id="loginResult"></div>
+</div>
+
+<div class="card">
+  <h2 style="font-size:18px;margin-top:0">📋 診断ログ</h2>
+  <div id="log" class="log">まだ診断していません。</div>
+  <button class="secondary" onclick="copyLog()">📋 ログをコピー</button>
+</div>
+
+<div class="card">
+  <div class="small">
+    公開URL想定：<b>https://kid510may10-sudo.github.io/janken-kingdom/</b><br>
+    このページだけ正常なら、Firebase自体ではなくゲーム本体側の読み込み順やコード衝突が原因です。<br>
+    このページでもSDKまたは初期化で失敗するなら、CDN・通信・ブラウザ・Firebaseプロジェクト設定側の可能性が高いです。
+  </div>
+</div>
+</div>
+
+<script>
+const firebaseConfig={
+  apiKey:"AIzaSyBpC_YgEG6-T70HwSlB3__MDI70WNsxqiQ",
+  authDomain:"janken-kingdom.firebaseapp.com",
+  projectId:"janken-kingdom",
+  storageBucket:"janken-kingdom.firebasestorage.app",
+  messagingSenderId:"748399805019",
+  appId:"1:748399805019:web:b3d6dc75ccf551bef3357e"
+};
+
+let app=null,auth=null,db=null;
+let lines=[];
+
+function log(msg,obj){
+  const stamp=new Date().toLocaleTimeString("ja-JP");
+  let tail="";
+  if(obj!==undefined){
+    try{tail=" "+(typeof obj==="string"?obj:JSON.stringify(obj))}catch(e){tail=" "+String(obj)}
+  }
+  lines.push(`[${stamp}] ${msg}${tail}`);
+  document.getElementById("log").textContent=lines.join("\n");
+}
+function setSt(id,msg,type){
+  const e=document.getElementById(id);e.textContent=msg;e.className="status "+(type||"info");
+}
+function loadScript(src,timeout=12000){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement("script");
+    s.src=src;s.async=true;s.crossOrigin="anonymous";
+    let done=false;
+    const t=setTimeout(()=>{if(done)return;done=true;try{s.remove()}catch(e){};reject(new Error("timeout"))},timeout);
+    s.onload=()=>{if(done)return;done=true;clearTimeout(t);resolve(true)};
+    s.onerror=()=>{if(done)return;done=true;clearTimeout(t);try{s.remove()}catch(e){};reject(new Error("load_failed"))};
+    document.head.appendChild(s);
+  });
+}
+
+async function ensureSdk(){
+  if(window.firebase?.initializeApp&&window.firebase?.auth&&window.firebase?.firestore){
+    setSt("stSdk","✅ 読込済み","ok");log("Firebase SDKはすでに存在");
+    return true;
+  }
+  const cdns=[
+    ["gstatic","https://www.gstatic.com/firebasejs/10.12.5"],
+    ["jsDelivr","https://cdn.jsdelivr.net/npm/firebase@10.12.5"],
+    ["unpkg","https://unpkg.com/firebase@10.12.5"]
+  ];
+  for(const [name,base] of cdns){
+    try{
+      log(`${name} からSDK読込開始`);
+      if(!window.firebase?.initializeApp)await loadScript(`${base}/firebase-app-compat.js`);
+      if(!window.firebase?.auth)await loadScript(`${base}/firebase-auth-compat.js`);
+      if(!window.firebase?.firestore)await loadScript(`${base}/firebase-firestore-compat.js`);
+      if(window.firebase?.initializeApp&&window.firebase?.auth&&window.firebase?.firestore){
+        setSt("stSdk",`✅ ${name}から読込OK`,"ok");
+        log(`${name} からFirebase SDK読込成功`);
+        return true;
+      }
+    }catch(e){
+      log(`${name} 読込失敗`,e.message);
+    }
+  }
+  setSt("stSdk","❌ SDK読込失敗","bad");
+  return false;
+}
+
+async function initFirebase(){
+  try{
+    if(!await ensureSdk())return false;
+    app=firebase.apps.length?firebase.app():firebase.initializeApp(firebaseConfig);
+    auth=firebase.auth();
+    db=firebase.firestore();
+    try{await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)}catch(e){log("永続化設定エラー",e.code||e.message)}
+    setSt("stInit","✅ 初期化OK","ok");log("Firebase初期化成功");
+    return true;
+  }catch(e){
+    setSt("stInit","❌ 初期化失敗","bad");log("Firebase初期化失敗",{code:e.code,message:e.message});
+    return false;
+  }
+}
+
+async function testAuth(){
+  try{
+    if(!auth&&!(await initFirebase()))return false;
+    await new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>resolve(),3000);
+      const off=auth.onAuthStateChanged(u=>{clearTimeout(timer);off();resolve(u)},reject);
+    });
+    setSt("stAuth","✅ Auth応答あり","ok");
+    const u=auth.currentUser;
+    if(u){
+      setSt("stUser",u.isAnonymous?"匿名ログイン中":"先生ログイン中","ok");
+      log("Auth応答",{uid:u.uid,isAnonymous:u.isAnonymous,email:u.email||""});
+    }else{
+      setSt("stUser","未ログイン","info");
+      log("Auth応答：現在ユーザーなし");
+    }
+    return true;
+  }catch(e){
+    setSt("stAuth","❌ Auth失敗","bad");log("Auth失敗",{code:e.code,message:e.message});
+    return false;
+  }
+}
+
+async function testFirestore(){
+  try{
+    if(!db&&!(await initFirebase()))return false;
+    const snap=await Promise.race([
+      db.collection("packs").limit(1).get(),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error("Firestore timeout")),8000))
+    ]);
+    setSt("stDb",`✅ 読込OK (${snap.size}件)`,"ok");
+    log("Firestore読込成功",{size:snap.size});
+    return true;
+  }catch(e){
+    setSt("stDb","❌ Firestore失敗","bad");
+    log("Firestore失敗",{code:e.code||"",message:e.message||String(e)});
+    return false;
+  }
+}
+
+async function runAll(){
+  lines=[];document.getElementById("log").textContent="";
+  ["stSdk","stInit","stAuth","stDb","stUser"].forEach(id=>setSt(id,"確認中…","warn"));
+  log("診断開始");
+  log("URL",location.href);
+  log("UserAgent",navigator.userAgent);
+  log("online",navigator.onLine);
+
+  const s=await ensureSdk();if(!s){setSt("stInit","未実行","warn");setSt("stAuth","未実行","warn");setSt("stDb","未実行","warn");setSt("stUser","未実行","warn");return}
+  const i=await initFirebase();if(!i){setSt("stAuth","未実行","warn");setSt("stDb","未実行","warn");setSt("stUser","未実行","warn");return}
+  await testAuth();
+  await testFirestore();
+  log("診断終了");
+}
+
+async function testLogin(){
+  const r=document.getElementById("loginResult");
+  r.innerHTML="";
+  const email=document.getElementById("email").value.trim();
+  const password=document.getElementById("password").value;
+  if(!email||!password){r.innerHTML='<div class="badbox">メールアドレスとパスワードを入力してください。</div>';return}
+  if(!auth&&!(await initFirebase())){r.innerHTML='<div class="badbox">Firebase初期化に失敗しています。</div>';return}
+  try{
+    const cred=await auth.signInWithEmailAndPassword(email,password);
+    const u=cred.user;
+    r.innerHTML=`<div class="okbox">✅ ログイン成功<br>${u.email||""}<br>UID: ${u.uid}</div>`;
+    setSt("stUser","先生ログイン中","ok");
+    log("メール/パスワード認証成功",{uid:u.uid,email:u.email});
+  }catch(e){
+    r.innerHTML=`<div class="badbox">❌ ログイン失敗<br>${e.code||""}<br>${e.message||""}</div>`;
+    log("メール/パスワード認証失敗",{code:e.code,message:e.message});
+  }
+}
+
+async function copyLog(){
+  const s=lines.join("\n");
+  try{await navigator.clipboard.writeText(s);alert("診断ログをコピーしました")}catch(e){alert("コピーできませんでした")}
+}
+
+window.addEventListener("load",()=>setTimeout(runAll,300));
+</script>
+</body>
+</html>
