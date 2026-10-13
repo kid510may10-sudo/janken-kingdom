@@ -1,0 +1,172 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>🏰🎪 クエスト管理</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<style>
+:root{color-scheme:dark;--panel:#17131e;--line:#4e415e;--text:#f7f2ff;--muted:#b9aec8}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#130c1e,#09070d);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:30;background:#0b0910eb;backdrop-filter:blur(12px);border-bottom:1px solid #3b3047;padding:10px}
+.wrap{width:min(960px,100%);margin:auto;padding:10px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;margin:10px 0}
+h1{font-size:20px;margin:0}h2{font-size:17px;margin:0 0 9px}h3{font-size:14px;margin:12px 0 6px}.muted{font-size:11px;color:var(--muted);line-height:1.55}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+label{display:block;font-size:11px;color:#d9cfe5;margin-bottom:4px}input,select,textarea,button{font:inherit}
+input,select,textarea{width:100%;background:#0d0b12;color:#fff;border:1px solid #574868;border-radius:11px;padding:10px}
+textarea{min-height:90px;resize:vertical}button{border:0;border-radius:11px;padding:10px 12px;font-weight:800;background:#352944;color:#fff}
+button.primary{background:linear-gradient(135deg,#7752df,#a565ff)}button.ok{background:#27583c}button.danger{background:#672b38}button:disabled{opacity:.45}
+.row{display:flex;gap:7px;flex-wrap:wrap}.row>*{flex:1}.list{display:grid;gap:7px}.item{border:1px solid #463a54;background:#100d15;border-radius:12px;padding:9px}
+.badge{display:inline-block;padding:3px 7px;border-radius:999px;background:#2b2237;font-size:10px;color:#d8c9ed}.status{font-size:11px;padding:7px 9px;border-radius:9px;background:#10151d;color:#cce3f5;margin-top:7px}
+.hidden{display:none!important}.nav{display:flex;gap:6px;overflow:auto;padding-top:8px}.nav button{white-space:nowrap;min-width:max-content}.login{max-width:520px;margin:8vh auto}
+.reward-row,.prize-row{display:grid;grid-template-columns:1.1fr 1.4fr 90px 90px 44px;gap:6px;align-items:end;margin:6px 0;padding:7px;border:1px solid #40364b;border-radius:12px;background:#100d15}
+.deck-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.tabs{display:flex;gap:6px;overflow:auto}.tabs button{white-space:nowrap}
+@media(max-width:680px){.grid,.grid3,.deck-grid{grid-template-columns:1fr}.reward-row,.prize-row{grid-template-columns:1fr}.reward-row button,.prize-row button{width:100%}header{padding-top:max(10px,env(safe-area-inset-top))}}
+</style></head>
+<body><header><div class="wrap"><h1>🏰🎪 クエスト管理</h1><div class="muted">QUEST 1〜300とイベントクエストを軽量ページから編集。共通報酬は他の管理ページと連携。</div></div></header><div class="wrap">
+<div id="loginBox" class="card login"><h2>🔐 教員ログイン</h2><div class="grid"><div><label>メール</label><input id="email" type="email"></div><div><label>パスワード</label><input id="password" type="password" onkeydown="if(event.key==='Enter')login()"></div></div><button class="primary" style="width:100%;margin-top:8px" onclick="login()">ログイン</button><div id="status" class="status">メインゲームと同じFirebaseへ接続します。</div></div>
+<div id="appBox" class="hidden">
+<div class="card"><div class="tabs"><button onclick="showTab('normal')">🏰 ノーマルQUEST</button><button onclick="showTab('event')">🎪 イベントQUEST</button><button onclick="loadAll()">🔄 再読込</button><button onclick="logout()">ログアウト</button></div><div id="loadStatus" class="status">データ読込待ち</div></div>
+
+<div id="normalTab">
+<div class="card"><h2>🏰 ノーマルQUEST 1〜300 管理</h2>
+<div class="grid3"><div><label>QUEST番号</label><input id="nqNum" type="number" min="1" max="300" value="1" onchange="loadNormal()"></div><div><label>敵名</label><input id="nqEnemy"></div><div><label>アイコン</label><input id="nqIcon" value="👑"></div><div><label>基本コイン報酬</label><input id="nqCoin" type="number" min="0" max="500" value="100"></div><div><label>AI強さ%</label><input id="nqAI" type="number" min="0" max="100" value="20"></div><div><label>敵初期ポイント</label><input id="nqEnemyStart" type="number" min="0" max="30" value="0"></div></div>
+<h3>🃏 敵デッキ</h3><div id="nqDeck" class="deck-grid"></div>
+<div style="margin-top:8px"><label>敵必殺カード</label><select id="nqSpecial"></select></div>
+<h3>🎁 初回クリア追加報酬</h3><div id="nqFirstRewards"></div><button onclick="addReward('nqFirstRewards')">＋報酬追加</button>
+<h3>🔁 2回目以降の追加報酬</h3><div id="nqReplayRewards"></div><button onclick="addReward('nqReplayRewards')">＋報酬追加</button>
+<div class="row" style="margin-top:10px"><button class="primary" onclick="saveNormal()">💾 QUEST保存</button><button class="danger" onclick="resetNormal()">自動設定へ戻す</button></div></div></div>
+
+<div id="eventTab" class="hidden">
+<div class="card"><h2>🎪 イベントQUEST 作成・編集</h2><input id="evId" type="hidden">
+<div class="grid3"><div><label>イベント名</label><input id="evName"></div><div><label>敵名</label><input id="evEnemy"></div><div><label>アイコン</label><input id="evIcon" value="🎪"></div><div><label>解放QUEST</label><input id="evUnlock" type="number" min="0" max="300" value="0"></div><div><label>ラウンド数</label><select id="evRounds" onchange="renderEventDeck()"><option>3</option><option>4</option><option>5</option><option selected>6</option></select></div><div><label>AI強さ%</label><input id="evAI" type="number" min="0" max="100" value="40"></div><div><label>開始日時</label><input id="evStart" type="datetime-local"></div><div><label>終了日時</label><input id="evEnd" type="datetime-local"></div><div><label>再戦</label><select id="evRepeat"><option value="1">可能</option><option value="0">不可</option></select></div></div>
+<label style="margin-top:8px">説明</label><textarea id="evDesc"></textarea>
+<h3>🃏 敵デッキ</h3><div id="evDeck" class="deck-grid"></div><div style="margin-top:8px"><label>敵必殺カード</label><select id="evSpecial"></select></div>
+<h3>🎁 初回クリア報酬</h3><div id="evFirstRewards"></div><button onclick="addReward('evFirstRewards')">＋報酬追加</button>
+<h3>🔁 再戦報酬</h3><div id="evReplayRewards"></div><button onclick="addReward('evReplayRewards')">＋報酬追加</button>
+<div class="row" style="margin-top:10px"><button class="primary" onclick="saveEvent()">💾 イベント保存</button><button onclick="newEvent()">新規</button><button class="danger" onclick="deleteEvent()">削除</button></div></div>
+<div class="card"><h2>🎪 保存済みイベント</h2><div id="eventList" class="list"></div></div>
+</div>
+</div></div><script>
+const firebaseConfig={
+ apiKey:"AIzaSyBpC_YgEG6-T70HwSlB3__MDI70WNsxqiQ",
+ authDomain:"janken-kingdom.firebaseapp.com",
+ projectId:"janken-kingdom",
+ storageBucket:"janken-kingdom.firebasestorage.app",
+ messagingSenderId:"748399805019",
+ appId:"1:748399805019:web:b3d6dc75ccf551bef3357e"
+};
+
+let app=null,auth=null,db=null;
+function qs(id){return document.getElementById(id)}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function status(msg,ok=true){const e=qs("status");if(e){e.textContent=msg;e.style.color=ok?"#bcebc9":"#ffb6c2"}}
+function initFirebase(){if(app)return;app=firebase.initializeApp(firebaseConfig);auth=firebase.auth();db=firebase.firestore()}
+async function login(){initFirebase();const email=qs("email").value.trim(),pw=qs("password").value;if(!email||!pw)return status("メールアドレスとパスワードを入力してください",false);try{status("認証中…");const c=await auth.signInWithEmailAndPassword(email,pw);if(!c.user||c.user.isAnonymous)throw Error("teacher");qs("loginBox").classList.add("hidden");qs("appBox").classList.remove("hidden");status("✅ 教員ログイン成功");await afterLogin()}catch(e){console.error(e);status("ログインできません。メール/パスワードを確認してください",false)}}
+async function logout(){try{await auth.signOut()}catch(e){}location.reload()}
+function uid(prefix){return prefix+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,8)}
+async function cloudSet(col,id,data,merge=false){return db.collection(col).doc(id).set(data,{merge})}
+async function cloudDelete(col,id){return db.collection(col).doc(id).delete()}
+document.addEventListener("DOMContentLoaded",()=>{initFirebase();auth.onAuthStateChanged(u=>{if(u&&!u.isAnonymous){qs("loginBox").classList.add("hidden");qs("appBox").classList.remove("hidden");afterLogin().catch(console.error)}})})
+
+
+const PET_ITEM_NAMES={
+ miracle_blanket:"🧣 奇跡の毛布",study_machine:"🤖 一緒に学ぼうマシン",
+ pet_food_luxury:"🍖 高級メニュー",pet_food_meal:"🍚 ごはんメニュー",pet_food_snack:"🦴 おやつメニュー"
+};
+const REWARD_TYPES=[
+ ["coin","🪙 コイン"],["card","🃏 カード"],["egg","🥚 卵"],["pet_equipment","🎒 ペット装備"],
+ ["pet_consumable","🎁 ペット消費アイテム"],["pet_gem","💎 特定ペットの宝石"],
+ ["ticket_sr","🎟 SR以上確定チケット"],["ticket_sr_under","🎫 SR以下確定チケット"],
+ ["kb_ticket","⚔️ 漢字バスターズ券"],["kb_premium_ticket","👑 プレミアムバスターズ券"],
+ ["limit_diamond","💠 ダイヤモンド"],["rp_crystal","🔷 RPクリスタル"],
+ ["choice_lake","🌊 選択の湖"],["stat_reset","⛲ 選択の泉"]
+];
+function rewardTypeOptions(sel="coin"){return REWARD_TYPES.map(([k,n])=>`<option value="${k}" ${k===sel?"selected":""}>${n}</option>`).join("")}
+function rewardItemOptions(type,sel=""){
+ let a=[];
+ if(type==="card")a=cards.map(x=>[x.id,`${x.rarity||"N"}｜${x.name||x.id}`]);
+ else if(type==="egg")a=(petCfg.eggs||[]).map(x=>[x.id,x.name||x.id]);
+ else if(type==="pet_equipment")a=(petCfg.equipmentDefs||[]).map(x=>[x.id,x.name||x.id]);
+ else if(type==="pet_gem")a=(petCfg.characters||[]).map(x=>[x.id,`${x.name||x.id}の宝石`]);
+ else if(type==="pet_consumable")a=Object.entries(PET_ITEM_NAMES);
+ return a.length?'<option value="">選択</option>'+a.map(([id,n])=>`<option value="${esc(id)}" ${String(id)===String(sel)?"selected":""}>${esc(n)}</option>`).join(""):'<option value="">対象なし</option>';
+}
+function rewardNeedsItem(t){return ["card","egg","pet_equipment","pet_consumable","pet_gem"].includes(t)}
+function rewardLabel(r){
+ const n=Math.max(1,Number(r.qty)||1),t=r.type;
+ if(t==="coin")return `🪙 ${n}`;
+ if(t==="card")return `🃏 ${cards.find(x=>x.id===r.itemId)?.name||r.itemId}`;
+ if(t==="egg")return `🥚 ${(petCfg.eggs||[]).find(x=>x.id===r.itemId)?.name||r.itemId}`;
+ if(t==="pet_equipment")return `🎒 ${(petCfg.equipmentDefs||[]).find(x=>x.id===r.itemId)?.name||r.itemId}`;
+ if(t==="pet_gem")return `💎 ${(petCfg.characters||[]).find(x=>x.id===r.itemId)?.name||r.itemId} ×${n}`;
+ if(t==="pet_consumable")return `${PET_ITEM_NAMES[r.itemId]||r.itemId} ×${n}`;
+ return `${REWARD_TYPES.find(x=>x[0]===t)?.[1]||t} ×${n}`;
+}
+function rewardRowHTML(r={},cls="reward-row",weight=false){
+ const type=r.type||"coin",id=uid("rr");
+ return `<div class="${cls}" data-rid="${id}">
+  <div><label>種類</label><select class="rwType" onchange="syncRewardRow(this)">${rewardTypeOptions(type)}</select></div>
+  <div class="rwItemWrap ${rewardNeedsItem(type)?"":"hidden"}"><label>対象</label><select class="rwItem">${rewardItemOptions(type,r.itemId||"")}</select></div>
+  <div><label>個数</label><input class="rwQty" type="number" min="1" value="${Math.max(1,Number(r.qty)||1)}"></div>
+  ${weight?`<div><label>抽選比率</label><input class="rwWeight" type="number" min="0.1" step="0.1" value="${Math.max(.1,Number(r.weight)||1)}"></div>`:'<div></div>'}
+  <button class="danger" onclick="this.closest('.${cls}').remove()">✕</button>
+ </div>`;
+}
+function syncRewardRow(sel){
+ const row=sel.closest(".reward-row,.prize-row"),type=sel.value,wrap=row.querySelector(".rwItemWrap"),item=row.querySelector(".rwItem");
+ wrap.classList.toggle("hidden",!rewardNeedsItem(type));item.innerHTML=rewardItemOptions(type,"");
+}
+function readRewardRows(root,weight=false){
+ return [...root.querySelectorAll(".reward-row,.prize-row")].map(row=>{
+   const type=row.querySelector(".rwType")?.value||"coin";
+   const itemId=rewardNeedsItem(type)?String(row.querySelector(".rwItem")?.value||""):"";
+   const qty=Math.max(1,Math.floor(Number(row.querySelector(".rwQty")?.value)||1));
+   const x={type,itemId,qty};
+   if(weight)x.weight=Math.max(.1,Number(row.querySelector(".rwWeight")?.value)||1);
+   return x;
+ }).filter(x=>!rewardNeedsItem(x.type)||x.itemId);
+}
+
+const PET_CFG="__pet_market_v3";let cards=[],petCfg={eggs:[],characters:[],equipmentDefs:[]},bossOverrides={},events=[];
+async function afterLogin(){await loadAll()}
+async function loadAll(){
+ qs("loadStatus").textContent="カード・卵・装備・クエスト設定を読み込み中…";
+ const [cs,ps,es]=await Promise.all([db.collection("cards").get(),db.collection("packs").doc(PET_CFG).get(),db.collection("events").get()]);
+ cards=cs.docs.map(d=>({id:d.id,...d.data()}));petCfg={eggs:[],characters:[],equipmentDefs:[],...(ps.data()||{})};
+ const ed=es.docs.map(d=>({id:d.id,...d.data()})),bq=ed.find(x=>x.id==="__boss_quest_config");
+ bossOverrides=bq?.bossQuestOverrides&&typeof bq.bossQuestOverrides==="object"?bq.bossQuestOverrides:{};
+ events=ed.filter(x=>x.id!=="__boss_quest_config"&&!x.internalType&&!String(x.id).startsWith("__weekly_"));
+ renderCardOptions();loadNormal();renderEvents();newEvent();
+ qs("loadStatus").textContent=`✅ カード${cards.length} / 卵${petCfg.eggs.length} / 装備${petCfg.equipmentDefs.length} / イベント${events.length}`;
+}
+function showTab(t){qs("normalTab").classList.toggle("hidden",t!=="normal");qs("eventTab").classList.toggle("hidden",t!=="event")}
+function normalCards(){return cards.filter(c=>c.cardType!=="special"&&!c.incarnationOnly)}
+function specialCards(){return cards.filter(c=>c.cardType==="special")}
+function cardOpts(sel="",special=false){const a=special?specialCards():normalCards();return `<option value="">${special?"なし":"自動"}</option>`+a.map(c=>`<option value="${esc(c.id)}" ${String(c.id)===String(sel)?"selected":""}>${esc(c.rarity||"N")}｜${esc(c.name||c.id)}</option>`).join("")}
+function renderCardOptions(){qs("nqSpecial").innerHTML=cardOpts("",true);qs("evSpecial").innerHTML=cardOpts("",true);renderNormalDeck();renderEventDeck()}
+function renderNormalDeck(deck=[]){qs("nqDeck").innerHTML=Array.from({length:6},(_,i)=>`<div><label>敵カード${i+1}</label><select id="nqCard${i}">${cardOpts(deck[i]||"")}</select></div>`).join("")}
+function renderEventDeck(deck=[]){const n=Math.max(3,Math.min(6,Number(qs("evRounds").value)||6));qs("evDeck").innerHTML=Array.from({length:n},(_,i)=>`<div><label>敵カード${i+1}</label><select id="evCard${i}">${cardOpts(deck[i]||"")}</select></div>`).join("")}
+function addReward(rootId,r={}){qs(rootId).insertAdjacentHTML("beforeend",rewardRowHTML(r,"reward-row",false))}
+function fillRewards(rootId,a=[]){qs(rootId).innerHTML="";for(const r of a)addReward(rootId,r)}
+function autoNormal(q){const region=Math.floor((q-1)/5),step=((q-1)%5)+1,boss=step===5;return {enemy:boss?`自動ボス QUEST${q}`:`自動敵 Lv.${q}`,icon:"👑",reward:Math.min(500,100+Math.floor((q-1)*4)+(boss?60:0)),ai:Math.min(.98,.04+(q-1)*.0032+(boss?.06:0)),enemyStartBonus:q<=100?0:Math.min(18,Math.floor((q-100)/25)+(boss?2:0)),enemyDeck:[],enemySpecialCard:null,extraFirstRewards:[],extraReplayRewards:[]}}
+function loadNormal(){
+ const q=Math.max(1,Math.min(300,Number(qs("nqNum").value)||1)),o=bossOverrides[String(q)]||{},x={...autoNormal(q),...o};
+ qs("nqEnemy").value=x.enemy||"";qs("nqIcon").value=x.icon||"👑";qs("nqCoin").value=Number(x.reward)||0;qs("nqAI").value=Math.round((Number(x.ai)||0)*100);qs("nqEnemyStart").value=Number(x.enemyStartBonus)||0;
+ renderNormalDeck(x.enemyDeck||[]);qs("nqSpecial").innerHTML=cardOpts(x.enemySpecialCard||"",true);
+ fillRewards("nqFirstRewards",x.extraFirstRewards||[]);fillRewards("nqReplayRewards",x.extraReplayRewards||[]);
+}
+async function saveNormal(){
+ const q=Math.max(1,Math.min(300,Number(qs("nqNum").value)||1)),old=bossOverrides[String(q)]||{};
+ bossOverrides[String(q)]={...old,enemy:qs("nqEnemy").value.trim()||`QUEST ${q} 敵`,icon:(qs("nqIcon").value.trim()||"👑").slice(0,4),reward:Math.max(0,Math.min(500,Number(qs("nqCoin").value)||0)),ai:Math.max(0,Math.min(1,(Number(qs("nqAI").value)||0)/100)),enemyStartBonus:Math.max(0,Math.min(30,Number(qs("nqEnemyStart").value)||0)),enemyDeck:Array.from({length:6},(_,i)=>qs("nqCard"+i)?.value||"").filter(Boolean),enemySpecialCard:qs("nqSpecial").value||null,extraFirstRewards:readRewardRows(qs("nqFirstRewards")),extraReplayRewards:readRewardRows(qs("nqReplayRewards"))};
+ await cloudSet("events","__boss_quest_config",{bossQuestOverrides,updatedAt:Date.now()},false);qs("loadStatus").textContent=`✅ QUEST ${q}を保存しました`;
+}
+async function resetNormal(){const q=Math.max(1,Math.min(300,Number(qs("nqNum").value)||1));if(!confirm(`QUEST ${q}を自動設定へ戻しますか？`))return;delete bossOverrides[String(q)];await cloudSet("events","__boss_quest_config",{bossQuestOverrides,updatedAt:Date.now()},false);loadNormal()}
+function newEvent(){qs("evId").value="";qs("evName").value="";qs("evEnemy").value="";qs("evIcon").value="🎪";qs("evUnlock").value=0;qs("evRounds").value=6;qs("evAI").value=40;qs("evStart").value="";qs("evEnd").value="";qs("evRepeat").value="1";qs("evDesc").value="";qs("evSpecial").innerHTML=cardOpts("",true);renderEventDeck();fillRewards("evFirstRewards",[]);fillRewards("evReplayRewards",[]);addReward("evFirstRewards",{type:"coin",qty:300});addReward("evReplayRewards",{type:"coin",qty:50})}
+function renderEvents(){qs("eventList").innerHTML=events.filter(e=>!e.dungeonId&&!e.towerFloor).map(e=>`<div class="item"><b>${esc(e.icon||"🎪")} ${esc(e.name||e.id)}</b><div class="muted">${esc(e.enemy||"")} / AI ${Math.round((Number(e.ai)||0)*100)}% / ${Number(e.rounds)||6}R<br>初回 ${(e.rewardBundleFirst||[]).map(rewardLabel).join(" + ")||"なし"}</div><button style="width:100%;margin-top:5px" onclick="editEvent('${e.id}')">編集</button></div>`).join("")||'<div class="muted">通常イベントなし</div>'}
+function editEvent(id){const e=events.find(x=>x.id===id);if(!e)return;qs("evId").value=id;qs("evName").value=e.name||"";qs("evEnemy").value=e.enemy||"";qs("evIcon").value=e.icon||"🎪";qs("evUnlock").value=Number(e.unlockQuest)||0;qs("evRounds").value=Number(e.rounds)||6;qs("evAI").value=Math.round((Number(e.ai)||0)*100);qs("evStart").value=e.startAt||"";qs("evEnd").value=e.endAt||"";qs("evRepeat").value=e.repeatable===false?"0":"1";qs("evDesc").value=e.desc||"";qs("evSpecial").innerHTML=cardOpts(e.enemySpecialCard||"",true);renderEventDeck(e.enemyDeck||[]);fillRewards("evFirstRewards",e.rewardBundleFirst||[]);fillRewards("evReplayRewards",e.rewardBundleReplay||[]);scrollTo({top:0,behavior:"smooth"})}
+async function saveEvent(){
+ const startAt=qs("evStart").value,endAt=qs("evEnd").value;if(startAt&&endAt&&new Date(startAt)>=new Date(endAt))return alert("終了日時は開始より後にしてください");
+ const id=qs("evId").value||uid("event"),old=events.find(x=>x.id===id)||{},rounds=Math.max(3,Math.min(6,Number(qs("evRounds").value)||6));
+ const e={...old,id,event:true,name:qs("evName").value.trim()||"イベントステージ",desc:qs("evDesc").value.trim(),icon:(qs("evIcon").value.trim()||"🎪").slice(0,4),enemy:qs("evEnemy").value.trim()||"イベントモンスター",enemyAttr:old.enemyAttr||"none",enemyDeck:Array.from({length:rounds},(_,i)=>qs("evCard"+i)?.value||"").filter(Boolean),enemySpecialCard:qs("evSpecial").value||null,unlockQuest:Math.max(0,Math.min(300,Number(qs("evUnlock").value)||0)),rounds,ai:Math.max(0,Math.min(1,(Number(qs("evAI").value)||0)/100)),playerStart:Number(old.playerStart)||0,enemyStart:Number(old.enemyStart)||0,bannedHand:old.bannedHand||"none",requiredAttr:old.requiredAttr||"none",winRule:old.winRule||"normal_special",startAt,endAt,repeatable:qs("evRepeat").value==="1",firstReward:{type:"none"},replayGift:{type:"none"},rewardBundleFirst:readRewardRows(qs("evFirstRewards")),rewardBundleReplay:readRewardRows(qs("evReplayRewards"))};
+ await cloudSet("events",id,e,false);const i=events.findIndex(x=>x.id===id);if(i>=0)events[i]=e;else events.push(e);renderEvents();editEvent(id);qs("loadStatus").textContent="✅ イベントを保存しました";
+}
+async function deleteEvent(){const id=qs("evId").value;if(!id||!confirm("このイベントを削除しますか？"))return;await cloudDelete("events",id);events=events.filter(x=>x.id!==id);newEvent();renderEvents()}
+</script></body></html>

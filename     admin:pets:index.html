@@ -1,0 +1,97 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>🥚🐾 ペット・卵・装備管理</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#0b0a10;--panel:#17131e;--line:#4e415e;--text:#f7f2ff;--muted:#b9aec8;--accent:#8f6cff;--ok:#75d99b;--danger:#ff7b8f}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#130c1e,#09070d);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:30;background:#0b0910e8;backdrop-filter:blur(12px);border-bottom:1px solid #3b3047;padding:10px}
+.wrap{width:min(920px,100%);margin:auto;padding:10px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;margin:10px 0}
+h1{font-size:20px;margin:0}h2{font-size:17px;margin:0 0 9px}h3{font-size:14px;margin:12px 0 6px}.muted{font-size:11px;color:var(--muted);line-height:1.55}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+label{display:block;font-size:11px;color:#d9cfe5;margin-bottom:4px}input,select,textarea,button{font:inherit}
+input,select,textarea{width:100%;background:#0d0b12;color:#fff;border:1px solid #574868;border-radius:11px;padding:10px}
+textarea{min-height:90px;resize:vertical}button{border:0;border-radius:11px;padding:10px 12px;font-weight:800;background:#352944;color:#fff}
+button.primary{background:linear-gradient(135deg,#7752df,#a565ff)}button.ok{background:#27583c}button.danger{background:#672b38}button:disabled{opacity:.45}
+.row{display:flex;gap:7px;flex-wrap:wrap}.row>*{flex:1}.list{display:grid;gap:7px}.item{border:1px solid #463a54;background:#100d15;border-radius:12px;padding:9px}
+.badge{display:inline-block;padding:3px 7px;border-radius:999px;background:#2b2237;font-size:10px;color:#d8c9ed}.status{font-size:11px;padding:7px 9px;border-radius:9px;background:#10151d;color:#cce3f5;margin-top:7px}
+.hidden{display:none!important}.thumb{width:100%;max-height:220px;object-fit:contain;background:#09070b;border-radius:10px;margin-top:7px}
+.nav{display:flex;gap:6px;overflow:auto;padding-top:8px}.nav button{white-space:nowrap;min-width:max-content}
+.login{max-width:520px;margin:8vh auto}.pill{font-size:10px;padding:4px 7px;border-radius:999px;background:#22202a;color:#bcd1ff}
+@media(max-width:650px){.grid,.grid3{grid-template-columns:1fr}header{padding-top:max(10px,env(safe-area-inset-top))}}
+</style></head><body>
+<header><div class="wrap"><h1>🥚🐾 ペット・卵・装備管理</h1><div class="muted">卵・ペット・装備だけを読み込むスマホ用ページ。</div></div></header>
+<div class="wrap">
+<div id="loginBox" class="card login"><h2>🔐 教員ログイン</h2><div class="grid"><div><label>メール</label><input id="email" type="email"></div><div><label>パスワード</label><input id="password" type="password" onkeydown="if(event.key==='Enter')login()"></div></div><button class="primary" style="width:100%;margin-top:8px" onclick="login()">ログイン</button><div id="status" class="status">メインゲームと同じFirebaseへ接続します。</div></div>
+<div id="appBox" class="hidden">
+<div class="card"><div class="nav"><button onclick="showTab('eggs')">🥚 卵</button><button onclick="showTab('pets')">🐾 ペット</button><button onclick="showTab('equip')">🎒 装備</button><button onclick="loadConfig()">🔄 再読込</button><button onclick="logout()">ログアウト</button></div><div id="petStatus" class="status">データを読み込みます。</div></div>
+<div id="eggsTab"><div class="card"><h2>🥚 卵 作成・編集</h2><input id="eggId" type="hidden"><div class="grid"><div><label>名前</label><input id="eggName"></div><div><label>孵化XP</label><input id="eggXP" type="number" min="1" value="100"></div></div><div style="margin-top:8px"><label>画像URL / パス</label><input id="eggArt"><input type="file" accept="image/*" onchange="pickImage(this,'eggArt')" style="margin-top:5px"></div><div style="margin-top:8px"><label>誕生候補（1行1体：petId=確率）</label><textarea id="eggPool" placeholder="pet_xxx=50&#10;pet_yyy=50"></textarea></div><div class="row"><button class="primary" onclick="saveEgg()">保存</button><button onclick="newEgg()">新規</button><button class="danger" onclick="deleteEgg()">削除</button></div></div><div class="card"><h2>保存済み卵</h2><div id="eggList" class="list"></div></div></div>
+<div id="petsTab" class="hidden"><div class="card"><h2>🐾 ペット 作成・編集</h2><input id="petId" type="hidden"><div class="grid3"><div><label>名前</label><input id="petName"></div><div><label>レア度</label><select id="petRarity"><option>RP</option><option>SRP</option><option>URP</option><option>ARP</option></select></div><div><label>種族</label><input id="petSpecies" value="animal"></div><div><label>手</label><select id="petHand"><option value="rock">グー</option><option value="scissors">チョキ</option><option value="paper">パー</option></select></div><div><label>HP</label><input id="petHP" type="number" value="100"></div><div><label>ATK</label><input id="petATK" type="number" value="10"></div><div><label>DEF</label><input id="petDEF" type="number" value="5"></div><div><label>SPD</label><input id="petSPD" type="number" value="5"></div></div><div style="margin-top:8px"><label>画像URL / パス</label><input id="petArt"><input type="file" accept="image/*" onchange="pickImage(this,'petArt')" style="margin-top:5px"></div><div style="margin-top:8px"><label>能力（1行：効果ID,値,解放Lv,何Lvごと,強化量）</label><textarea id="petAbilities" placeholder="win_plus,1,1,5,1"></textarea></div><div class="row"><button class="primary" onclick="savePet()">保存</button><button onclick="newPet()">新規</button><button class="danger" onclick="deletePet()">削除</button></div></div><div class="card"><h2>保存済みペット</h2><div id="petList" class="list"></div></div></div>
+<div id="equipTab" class="hidden"><div class="card"><h2>🎒 ペット装備 作成・編集</h2><input id="eqId" type="hidden"><div class="grid3"><div><label>装備名</label><input id="eqName"></div><div><label>アイコン</label><input id="eqIcon" value="🎒"></div><div><label>装備条件</label><select id="eqMode" onchange="syncEqMode()"><option value="all">全ペット</option><option value="pet">特定ペット専用</option><option value="species">特定種族専用</option></select></div><div id="eqPetWrap"><label>専用ペット</label><select id="eqPet"></select></div><div id="eqSpeciesWrap"><label>専用種族</label><input id="eqSpecies"></div><div><label>HP+</label><input id="eqHP" type="number" value="0"></div><div><label>ATK+</label><input id="eqATK" type="number" value="0"></div><div><label>DEF+</label><input id="eqDEF" type="number" value="0"></div><div><label>SPD+</label><input id="eqSPD" type="number" value="0"></div></div><div style="margin-top:8px"><label>画像URL / パス（なしでもOK）</label><input id="eqArt"><input type="file" accept="image/*" onchange="pickImage(this,'eqArt')" style="margin-top:5px"></div><div style="margin-top:8px"><label>追加効果（1行：効果ID,値）</label><textarea id="eqEffects" placeholder="win_plus,2&#10;protect,0"></textarea></div><div class="row"><button class="primary" onclick="saveEq()">保存</button><button onclick="newEq()">新規</button><button class="danger" onclick="deleteEq()">削除</button></div></div><div class="card"><h2>保存済み装備</h2><div id="eqList" class="list"></div></div></div>
+</div>
+</div><script>
+
+const firebaseConfig={
+ apiKey:"AIzaSyBpC_YgEG6-T70HwSlB3__MDI70WNsxqiQ",
+ authDomain:"janken-kingdom.firebaseapp.com",
+ projectId:"janken-kingdom",
+ storageBucket:"janken-kingdom.firebasestorage.app",
+ messagingSenderId:"748399805019",
+ appId:"1:748399805019:web:b3d6dc75ccf551bef3357e"
+};
+
+let app=null,auth=null,db=null;
+function qs(id){return document.getElementById(id)}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function status(msg,ok=true){const e=qs("status");if(e){e.textContent=msg;e.style.color=ok?"#bcebc9":"#ffb6c2"}}
+function initFirebase(){if(app)return;app=firebase.initializeApp(firebaseConfig);auth=firebase.auth();db=firebase.firestore()}
+async function login(){
+ initFirebase();const email=qs("email").value.trim(),pw=qs("password").value;
+ if(!email||!pw)return status("メールアドレスとパスワードを入力してください",false);
+ try{status("認証中…");const c=await auth.signInWithEmailAndPassword(email,pw);if(!c.user||c.user.isAnonymous)throw Error("teacher");qs("loginBox").classList.add("hidden");qs("appBox").classList.remove("hidden");status("✅ 教員ログイン成功");await afterLogin()}catch(e){console.error(e);status("ログインできません。メール/パスワードを確認してください",false)}
+}
+async function logout(){try{await auth.signOut()}catch(e){}location.reload()}
+function uid(prefix){return prefix+"_"+Date.now()+"_"+Math.random().toString(36).slice(2,8)}
+async function cloudSet(col,id,data,merge=false){return db.collection(col).doc(id).set(data,{merge})}
+async function cloudDelete(col,id){return db.collection(col).doc(id).delete()}
+function normalizeCode(s){return String(s||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"")}
+function todayKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
+document.addEventListener("DOMContentLoaded",()=>{initFirebase();auth.onAuthStateChanged(u=>{if(u&&!u.isAnonymous){qs("loginBox").classList.add("hidden");qs("appBox").classList.remove("hidden");afterLogin().catch(console.error)}})})
+
+
+const CFG="__pet_market_v3",ASSET_PREFIX="__pet_asset_v1_";let cfg={eggs:[],characters:[],equipmentDefs:[],official:[]};let originals={};
+async function afterLogin(){await loadConfig()}
+function showTab(t){for(const x of ["eggs","pets","equip"])qs(x+"Tab").classList.toggle("hidden",x!==t)}
+function setPS(s){qs("petStatus").textContent=s}
+async function loadConfig(){setPS("読み込み中…");const s=await db.collection("packs").doc(CFG).get();cfg={eggs:[],characters:[],equipmentDefs:[],official:[],...(s.exists?s.data():{})};cfg.eggs=cfg.eggs||[];cfg.characters=cfg.characters||[];cfg.equipmentDefs=cfg.equipmentDefs||[];originals=JSON.parse(JSON.stringify(cfg));renderAll();setPS(`✅ 卵${cfg.eggs.length} / ペット${cfg.characters.length} / 装備${cfg.equipmentDefs.length}`)}
+async function saveConfig(){const c=JSON.parse(JSON.stringify(cfg));await externalizeAll(c);await db.collection("packs").doc(CFG).set(c,{merge:true});cfg=c;originals=JSON.parse(JSON.stringify(c));renderAll();setPS("✅ Firebaseへ保存しました")}
+async function pickImage(input,target){const f=input.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=async()=>{qs(target).value=await compress(String(rd.result||""));input.value=""};rd.readAsDataURL(f)}
+async function compress(data){try{const img=new Image();await new Promise((r,j)=>{img.onload=r;img.onerror=j;img.src=data});const s=Math.min(1,560/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);return c.toDataURL("image/jpeg",.68)}catch(e){return data}}
+async function ext(obj,key){const v=obj?.[key];if(typeof v!=="string"||!v.startsWith("data:image/"))return;const id=ASSET_PREFIX+Date.now()+"_"+Math.random().toString(36).slice(2,8);await db.collection("packs").doc(id).set({internalType:"pet_asset_v1",data:v,createdAt:Date.now()});obj[key]="asset://"+id}
+async function externalizeAll(c){for(const e of c.eggs||[])await ext(e,"art");for(const p of c.characters||[]){await ext(p,"art");for(const ev of p.evolutions||[])await ext(ev,"art")}for(const e of c.equipmentDefs||[])await ext(e,"art")}
+function parsePool(s){return String(s||"").split(/\n+/).map(x=>x.trim()).filter(Boolean).map(line=>{const [id,ch]=line.split("=");return {charId:id.trim(),chance:Math.max(0,Number(ch)||0)}}).filter(x=>x.charId)}
+function poolText(e){return (e.pool||[]).map(x=>`${x.charId||x.id}=${Number(x.chance)||0}`).join("\n")}
+function parseAbilities(s){return String(s||"").split(/\n+/).map(x=>x.trim()).filter(Boolean).map(line=>{const a=line.split(",").map(x=>x.trim());return {kind:a[0],value:Number(a[1])||0,level:Math.max(1,Number(a[2])||1),every:Math.max(1,Number(a[3])||99),grow:Number(a[4])||0,name:a[0]}})}
+function abilityText(p){return (p.abilities||[]).map(a=>`${a.kind},${Number(a.value)||0},${Number(a.level)||1},${Number(a.every)||99},${Number(a.grow)||0}`).join("\n")}
+function parseEffects(s){return String(s||"").split(/\n+/).map(x=>x.trim()).filter(Boolean).map(line=>{const a=line.split(",").map(x=>x.trim());return {kind:a[0],value:Number(a[1])||0,effectConfig:{}}})}
+function effectText(e){return (e.effects||[]).map(x=>`${x.kind},${Number(x.value)||0}`).join("\n")}
+function renderAll(){renderEggs();renderPets();renderEq();qs("eqPet").innerHTML='<option value="">選択</option>'+cfg.characters.map(p=>`<option value="${esc(p.id)}">${esc(p.name||p.id)}</option>`).join("");syncEqMode()}
+function renderEggs(){qs("eggList").innerHTML=cfg.eggs.map(e=>`<div class="item"><b>${esc(e.name)}</b><div class="muted">孵化 ${Number(e.hatchXP)||100}XP / 候補 ${(e.pool||[]).length}体</div><button style="width:100%;margin-top:5px" onclick="editEgg('${e.id}')">編集</button></div>`).join("")||'<div class="muted">卵なし</div>'}
+function renderPets(){qs("petList").innerHTML=cfg.characters.map(p=>`<div class="item"><b>${esc(p.name)}</b> <span class="badge">${esc(p.rarity||"RP")}</span><div class="muted">${esc(p.species||"animal")} / ${esc(p.hand||"paper")}</div><button style="width:100%;margin-top:5px" onclick="editPet('${p.id}')">編集</button></div>`).join("")||'<div class="muted">ペットなし</div>'}
+function rText(e){const r=e.restriction||{mode:"all"};if(r.mode==="pet")return `専用:${cfg.characters.find(p=>p.id===r.petId)?.name||r.petId}`;if(r.mode==="species")return `種族:${r.species}`;return "全ペット"}
+function renderEq(){qs("eqList").innerHTML=cfg.equipmentDefs.map(e=>`<div class="item"><b>${esc(e.icon||"🎒")} ${esc(e.name)}</b><div class="muted">${esc(rText(e))} / HP+${Number(e.stats?.hp)||0} ATK+${Number(e.stats?.atk)||0} DEF+${Number(e.stats?.def)||0} SPD+${Number(e.stats?.spd)||0}</div><button style="width:100%;margin-top:5px" onclick="editEq('${e.id}')">編集</button></div>`).join("")||'<div class="muted">装備なし</div>'}
+function newEgg(){qs("eggId").value="";qs("eggName").value="";qs("eggXP").value=100;qs("eggArt").value="";qs("eggPool").value=""}
+function editEgg(id){const e=cfg.eggs.find(x=>x.id===id);if(!e)return;qs("eggId").value=id;qs("eggName").value=e.name||"";qs("eggXP").value=Number(e.hatchXP)||100;qs("eggArt").value=e.art||"";qs("eggPool").value=poolText(e);scrollTo({top:0,behavior:"smooth"})}
+async function saveEgg(){const id=qs("eggId").value||uid("egg"),old=cfg.eggs.find(x=>x.id===id)||{};const e={...old,id,name:qs("eggName").value.trim()||"卵",hatchXP:Math.max(1,Number(qs("eggXP").value)||100),art:qs("eggArt").value.trim(),pool:parsePool(qs("eggPool").value)};e.chars=e.pool.map(x=>({id:x.charId,chance:x.chance}));const i=cfg.eggs.findIndex(x=>x.id===id);if(i>=0)cfg.eggs[i]=e;else cfg.eggs.push(e);await saveConfig();editEgg(id)}
+async function deleteEgg(){const id=qs("eggId").value;if(!id||!confirm("卵を削除？"))return;cfg.eggs=cfg.eggs.filter(x=>x.id!==id);cfg.official=(cfg.official||[]).filter(x=>!(x.kind==="egg"&&x.itemId===id));await saveConfig();newEgg()}
+function newPet(){qs("petId").value="";qs("petName").value="";qs("petRarity").value="RP";qs("petSpecies").value="animal";qs("petHand").value="paper";qs("petHP").value=100;qs("petATK").value=10;qs("petDEF").value=5;qs("petSPD").value=5;qs("petArt").value="";qs("petAbilities").value=""}
+function editPet(id){const p=cfg.characters.find(x=>x.id===id);if(!p)return;qs("petId").value=id;qs("petName").value=p.name||"";qs("petRarity").value=p.rarity||"RP";qs("petSpecies").value=p.species||"animal";qs("petHand").value=p.hand||"paper";qs("petHP").value=Number(p.hp)||100;qs("petATK").value=Number(p.atk)||10;qs("petDEF").value=Number(p.def)||5;qs("petSPD").value=Number(p.spd)||5;qs("petArt").value=p.art||"";qs("petAbilities").value=abilityText(p);scrollTo({top:0,behavior:"smooth"})}
+async function savePet(){const id=qs("petId").value||uid("pet"),old=cfg.characters.find(x=>x.id===id)||{};const p={...old,id,name:qs("petName").value.trim()||"ペット",rarity:qs("petRarity").value,species:qs("petSpecies").value.trim()||"animal",hand:qs("petHand").value,hp:Number(qs("petHP").value)||100,atk:Number(qs("petATK").value)||10,def:Number(qs("petDEF").value)||5,spd:Number(qs("petSPD").value)||5,art:qs("petArt").value.trim(),abilities:parseAbilities(qs("petAbilities").value)};const i=cfg.characters.findIndex(x=>x.id===id);if(i>=0)cfg.characters[i]=p;else cfg.characters.push(p);await saveConfig();editPet(id)}
+async function deletePet(){const id=qs("petId").value;if(!id||!confirm("ペットを削除？"))return;cfg.characters=cfg.characters.filter(x=>x.id!==id);for(const e of cfg.eggs)e.pool=(e.pool||[]).filter(x=>(x.charId||x.id)!==id);await saveConfig();newPet()}
+function syncEqMode(){const m=qs("eqMode").value;qs("eqPetWrap").classList.toggle("hidden",m!=="pet");qs("eqSpeciesWrap").classList.toggle("hidden",m!=="species")}
+function newEq(){qs("eqId").value="";qs("eqName").value="";qs("eqIcon").value="🎒";qs("eqMode").value="all";qs("eqPet").value="";qs("eqSpecies").value="";for(const k of ["HP","ATK","DEF","SPD"])qs("eq"+k).value=0;qs("eqArt").value="";qs("eqEffects").value="";syncEqMode()}
+function editEq(id){const e=cfg.equipmentDefs.find(x=>x.id===id);if(!e)return;qs("eqId").value=id;qs("eqName").value=e.name||"";qs("eqIcon").value=e.icon||"🎒";qs("eqMode").value=e.restriction?.mode||"all";qs("eqPet").value=e.restriction?.petId||"";qs("eqSpecies").value=e.restriction?.species||"";for(const k of ["hp","atk","def","spd"])qs("eq"+k.toUpperCase()).value=Number(e.stats?.[k])||0;qs("eqArt").value=e.art||"";qs("eqEffects").value=effectText(e);syncEqMode();scrollTo({top:0,behavior:"smooth"})}
+async function saveEq(){const id=qs("eqId").value||uid("equip"),old=cfg.equipmentDefs.find(x=>x.id===id)||{},mode=qs("eqMode").value;const e={...old,id,name:qs("eqName").value.trim()||"装備",icon:qs("eqIcon").value.trim()||"🎒",art:qs("eqArt").value.trim(),restriction:{mode,petId:mode==="pet"?qs("eqPet").value:"",species:mode==="species"?qs("eqSpecies").value.trim():""},stats:{hp:Number(qs("eqHP").value)||0,atk:Number(qs("eqATK").value)||0,def:Number(qs("eqDEF").value)||0,spd:Number(qs("eqSPD").value)||0},effects:parseEffects(qs("eqEffects").value)};const i=cfg.equipmentDefs.findIndex(x=>x.id===id);if(i>=0)cfg.equipmentDefs[i]=e;else cfg.equipmentDefs.push(e);await saveConfig();editEq(id)}
+async function deleteEq(){const id=qs("eqId").value;if(!id||!confirm("装備を削除？"))return;cfg.equipmentDefs=cfg.equipmentDefs.filter(x=>x.id!==id);cfg.official=(cfg.official||[]).filter(x=>!(x.kind==="pet_equipment"&&x.itemId===id));await saveConfig();newEq()}
+</script></body></html>
