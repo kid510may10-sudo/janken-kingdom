@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>じゃんけんキングダム｜ひみつの推理迷宮</title>
+<style>
+:root{font-family:system-ui,"Hiragino Kaku Gothic ProN",sans-serif;color:#24304a;background:#eef4ff}*{box-sizing:border-box}body{margin:0}header{background:linear-gradient(125deg,#283478,#6459ba);color:white;padding:20px 16px}header h1{font-size:1.45rem;margin:8px 0}.wrap{max-width:780px;margin:auto;padding:14px}button,a.btn{border:0;background:#425bd4;color:#fff;border-radius:14px;padding:13px 16px;font-size:1rem;font-weight:700;cursor:pointer;touch-action:manipulation}button:disabled{background:#abb4cf}button.alt,a.btn.alt{background:#fff;color:#334685;border:2px solid #c7d3ef}button.warn{background:#aa4673}.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.card{background:white;border-radius:20px;box-shadow:0 5px 18px #1b317818;padding:18px;margin:14px 0}.small{font-size:.86rem;color:#627090}.tag{display:inline-block;background:#ecedff;color:#4b4ba0;border-radius:999px;padding:5px 10px;font-size:.8rem;font-weight:700}.choice{display:block;width:100%;margin:9px 0;text-align:left;background:#f0f4ff;color:#24345d;border:2px solid #dce4ff}.choice:hover{border-color:#657ce5}.feedback{border-radius:14px;padding:12px;margin:12px 0;background:#fff5d7;color:#634800}.success{background:#def6e7;color:#126141}.hidden{display:none!important}#log{white-space:pre-wrap}input{font-size:16px;padding:12px;border-radius:12px;border:2px solid #c9d5ee;max-width:100%;width:100%}.map{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.tile{background:#e6edff;color:#34417f;border-radius:14px;text-align:center;padding:18px 5px;border:2px solid #bfd0ff}.tile.off{background:#e8e9ef;color:#8c91a3;border-color:#dadde8}.star{color:#ffc44f}.sep{height:1px;background:#e1e8f2;margin:16px 0}footer{padding:25px;text-align:center}.toplink{color:white}#notice{min-height:1em}
+</style>
+</head><body>
+<header><div class="wrap"><a class="toplink" href="../index.html">← じゃんけんキングダムへ</a><h1>🔎 ひみつの推理迷宮</h1><div>調べて、考えて、真相を見つけよう！</div></div></header>
+<main class="wrap">
+<div class="card"><div class="bar"><span class="tag" id="levelLabel">難易度を選ぼう</span><span class="tag">🪙 探偵ポイント <b id="points">0</b></span><span class="tag">🔑 発見した部屋 <b id="found">0</b></span></div><p id="notice" aria-live="polite"></p></div>
+<section id="home" class="card"><h2>🏰 どの迷宮に行く？</h2><p>学年ではなく、ひらめきと調査で挑戦できるよ。どのモードも閉じたところから再開できます。ジョーカーモードは一度始めると進行状況をリセットできません。</p><div id="levels" class="bar"></div><p class="small">※ ジョーカーモードの進行状況・クリア記録・発見した隠し部屋はリセット対象外です。探偵ポイントはこのゲーム専用。じゃんけんキングダムのコインとは連動していません。探偵ポイントは各謎・各隠し部屋につき初回のみ。進み具合をリセットしても取得履歴は消えません。プレゼントコードの使用可否は、じゃんけんキングダム本体側で判定します。</p><button class="alt" id="reset" type="button">進み具合をリセット</button></section>
+<section id="game" class="hidden"><div class="card"><div class="bar"><button class="alt" id="homeBtn">← モード選択</button><span id="progress" class="tag"></span></div><h2 id="sceneTitle"></h2><p id="story"></p><div id="map" class="map"></div><div class="sep"></div><h3>🔍 調べられる場所</h3><div id="inspect"></div><div id="clues" class="feedback" aria-live="polite">気になるところを調べよう。</div><h3>💡 なぞを解こう</h3><p id="question"></p><div id="answers"></div><div id="log" aria-live="polite"></div><div class="bar" id="controls"></div></div></section>
+<section id="ending" class="card hidden"><h2>🎉 迷宮クリア！</h2><p id="endText"></p><div class="bar"><button id="again">もう一度 遊ぶ</button><button class="alt" id="back">モード選択へ</button></div></section>
+</main><footer class="small">推理迷宮の冒険データはこの端末のブラウザーに保存されます。</footer>
+<script>
+'use strict';
+// 既存ゲームには触れない、独立した謎解きモード。
+const KEY='janken-mystery-v1';
+// 報酬の受け取り履歴は進行記録と分離し、リセットでは消さない。
+const REWARD_KEY='janken-mystery-rewards-v1';
+// ジョーカーの進行記録は通常のリセットとは別のキーで保管する。
+const JOKER_KEY='janken-mystery-joker-locked-v1';
+// この履歴は進行リセットの対象外。コードの発行・使用判定は本体のサーバーで管理する。
+const modes={easy:{name:'🌱 はじめて',hint:true},normal:{name:'🧭 ふつう',hint:true},hard:{name:'🔥 高学年',hint:false},joker:{name:'🃏 ジョーカー',hint:false}};
+// clue: 調べる場所の文章。need: 正解する前に必ず調べる場所。
+// secret: 隠し部屋を発見するために必要な、追加調査先の番号。
+const stages={
+ easy:[
+ {title:'消えた赤いカギ',story:'赤いカギがなくなった！三人の話を聞いてみよう。',spots:['ねこ「ぼくは青い箱しか開けていないよ」','うさぎ「赤い箱は朝から空だったよ」','たぬき「赤いカギは緑の箱に入れておいたよ」'],question:'赤いカギはどこにありそう？',choices:['青い箱','赤い箱','緑の箱'],answer:2,need:[2],hint:'たぬきの話を読もう。',secret:0,secretText:'青い箱の底に、月のマークがあった。'},
+ {title:'三つの道',story:'正しい道の手前には「星」が描いてあるらしい。',spots:['左の道には三角のしるし','真ん中の道には星のしるし','右の道には丸のしるし'],question:'どの道を進む？',choices:['左','真ん中','右'],answer:1,need:[1],hint:'星のしるしを探そう。',secret:2,secretText:'右の道の壁に「月→星」という暗号。'},
+ {title:'時計塔の約束',story:'時計塔の番人は「3時の2時間後に来て」と言った。',spots:['時計は3時で止まっている','番人の紙には「2時間後」','扉は5時になると開く'],question:'何時に行けばいい？',choices:['4時','5時','6時'],answer:1,need:[1],hint:'3に2を足してみよう。',secret:0,secretText:'止まった時計に、小さな王冠の印。'}],
+ normal:[
+ {title:'本棚の暗号',story:'本は左から「あ・き・ら・め・な・い」。合言葉は、偶数番目の文字を順に読むこと。',spots:['1番目「あ」、2番目「き」','3番目「ら」、4番目「め」','5番目「な」、6番目「い」'],question:'合言葉は？',choices:['あらな','きめい','あきら'],answer:1,need:[0,1,2],hint:'2・4・6番目を選ぼう。',secret:2,secretText:'6番目の本の裏に黒い羽根。'},
+ {title:'消えた宝石',story:'宝石が消えた。箱を開けられたのは、赤いカギを持つ人だけ。',spots:['アオ「カギは持っていない」','ミドリ「私のカギは青色だよ」','アカ「赤いカギは私が持っている」'],question:'まず誰に確かめるべき？',choices:['アオ','ミドリ','アカ'],answer:2,need:[2],hint:'開けられる人を探そう。犯人と決めつける問題ではないよ。',secret:1,secretText:'青いカギは実は別の扉のものだった。'},
+ {title:'三枚のメモ',story:'三枚のうち正しいメモは一枚だけ。箱の中の文字は「ネコ」だ。',spots:['メモA「箱にはネコと書いてある」','メモB「箱にはイヌと書いてある」','メモC「箱にはトリと書いてある」'],question:'正しいメモは？',choices:['A','B','C'],answer:0,need:[0,1,2],hint:'実際に書かれている文字と比べてみよう。',secret:2,secretText:'トリのメモには、暗号「31」が隠されていた。'}],
+ hard:[
+ {title:'三人の証言',story:'A・B・Cのうち犯人は一人。犯人だけがうそをつき、残り二人は本当のことを言う。',spots:['A「犯人はBだ」','B「犯人はCだ」','C「Bの言葉はうそだ」'],question:'犯人は誰？',choices:['A','B','C'],answer:1,need:[0,1,2],secret:2,secretText:'Cの机には「時計は逆回り」のメモ。'},
+ {title:'鍵の番号',story:'番号は3けた。すべての数字はちがう。左から小さい順で、合計は12。真ん中は4。',spots:['すべての数字は1〜9','合計は12','百の位は一の位より2小さい'],question:'番号は？',choices:['246','345','147'],answer:1,need:[0,1,2],secret:0,secretText:'机に「次は順番を疑え」の文字。'},
+ {title:'入れ替わる文字',story:'紙には「KATO」と書かれている。番人は文字を右から左へ読むよう指示した。',spots:['紙の文字はKATO','「最後の文字から読む」と書かれている','途中で文字を飛ばしてはいけない'],question:'正しい文字列は？',choices:['OTAK','KOTA','TAKO'],answer:0,need:[0,1,2],secret:1,secretText:'番人の指輪の裏には「J」の印。'}],
+ joker:[
+ {title:'ジョーカーの真実',story:'箱は赤・青・金の3つ。宝は1つだけ。3つの札のうち、正しい札はちょうど1つ。',spots:['赤の札「宝は赤い箱にはない」','青の札「宝は赤い箱にある」','金の札「宝は青い箱にない」'],question:'宝はどの箱？',choices:['赤','青','金'],answer:1,need:[0,1,2],secret:1,secretText:'青い札の裏に「見えているものを疑え」。'},
+ {title:'最後の門',story:'門には「数字は1, 2, 4, 7, 11, □」とある。規則を見ぬこう。',spots:['1から2は1増える','2から4は2増える','4から7は3、7から11は4増える'],question:'□に入る数字は？',choices:['14','15','16'],answer:2,need:[0,1,2],secret:0,secretText:'最初の石に二重の王冠が刻まれていた。'},
+ {title:'影の王',story:'ジョーカーは「私の名前を知るには、英語のJOKERを逆から読め」と言う。',spots:['英語の文字は J O K E R','並びを逆にする','文字は一つも消さない'],question:'正しい答えは？',choices:['REKOJ','ROKEJ','JOREK'],answer:0,need:[0,1,2],secret:2,secretText:'最後の扉の裏に「物語はまだ終わらない」。'}]
+};
+const $=id=>document.getElementById(id);
+function fresh(){return {points:0,rooms:[],cleared:{},awarded:[],progress:{}}}
+let save;try{save=Object.assign(fresh(),JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){save=fresh()}
+let rewards={solved:[],rooms:[]};
+try{
+ const old=JSON.parse(localStorage.getItem(REWARD_KEY)||'{}');
+ rewards.solved=Array.isArray(old.solved)?old.solved:[];
+ rewards.rooms=Array.isArray(old.rooms)?old.rooms:[];
+ // 旧版で受け取った報酬も引き継ぐ。
+ for(const id of (Array.isArray(save.awarded)?save.awarded:[]))if(!rewards.solved.includes(id))rewards.solved.push(id);
+ for(const id of (Array.isArray(save.rooms)?save.rooms:[]))if(!rewards.rooms.includes(id))rewards.rooms.push(id);
+ localStorage.setItem(REWARD_KEY,JSON.stringify(rewards));
+}catch(e){}
+let jokerState={started:false,step:0,cleared:false,rooms:[],seen:[],finished:false};
+try{const j=JSON.parse(localStorage.getItem(JOKER_KEY)||'{}');if(j&&typeof j==='object')jokerState={started:!!j.started,step:Number.isInteger(j.step)?Math.max(0,Math.min(j.step,stages.joker.length-1)):0,cleared:!!j.cleared,rooms:Array.isArray(j.rooms)?j.rooms:[],seen:Array.isArray(j.seen)?j.seen:[],finished:!!j.finished}}catch(e){}
+// 旧版で既にクリアした履歴がある場合も保護する。
+if(save.cleared.joker){jokerState.started=true;jokerState.cleared=true;}
+for(const id of (Array.isArray(save.rooms)?save.rooms:[]))if(id.startsWith('joker-')&&!jokerState.rooms.includes(id))jokerState.rooms.push(id);
+if(jokerState.rooms.length)jokerState.started=true;
+let mode=null,step=0,seen=[],finished=false;
+// 進行履歴はモード別。通常モードはリセット可能、ジョーカーは専用キーから復元。
+function currentProgress(k){
+ if(k==='joker')return {step:jokerState.step,seen:jokerState.seen||[],finished:!!jokerState.finished};
+ const p=(save.progress&&save.progress[k])||{};
+ return {step:Number.isInteger(p.step)?Math.max(0,Math.min(p.step,stages[k].length-1)):0,seen:Array.isArray(p.seen)?p.seen.filter(n=>Number.isInteger(n)&&n>=0&&n<3):[],finished:!!p.finished};
+}
+function recordProgress(){
+ const p={step,seen:[...seen],finished};
+ if(mode==='joker'){jokerState.started=true;Object.assign(jokerState,p)}
+ else{if(!save.progress||typeof save.progress!=='object')save.progress={};save.progress[mode]=p}
+ store();
+}
+function store(){try{localStorage.setItem(KEY,JSON.stringify(save));localStorage.setItem(REWARD_KEY,JSON.stringify(rewards));localStorage.setItem(JOKER_KEY,JSON.stringify(jokerState))}catch(e){notice('⚠️ 保存できません。ブラウザーの保存設定を確認してね。')}}
+function safe(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function stats(){ $('points').textContent=save.points;$('found').textContent=save.rooms.length }
+function notice(s){$('notice').textContent=s}
+function screen(id){['home','game','ending'].forEach(x=>$(x).classList.toggle('hidden',x!==id))}
+function home(){mode=null;screen('home');$('levelLabel').textContent='難易度を選ぼう';$('levels').innerHTML='';Object.keys(modes).forEach(k=>{let b=document.createElement('button');b.textContent=modes[k].name+((k==='joker'?jokerState.cleared:save.cleared[k])?' ✅':(k==='joker'?jokerState.started:!!(save.progress&&save.progress[k]))?' ▶ 続きから':'');b.onclick=()=>start(k);$('levels').append(b)});stats()}
+function start(k){mode=k;if(k==='joker'){
+ if(jokerState.cleared){screen('ending');$('levelLabel').textContent=modes[k].name;$('endText').textContent='🃏 ジョーカーモードはクリア済み。進行状況のリセット・最初からの再挑戦はできません。';$('again').classList.add('hidden');return;}
+ jokerState.started=true;
+}
+ const p=currentProgress(k);step=p.step;seen=p.seen;finished=p.finished;
+ $('again').classList.add('hidden');screen('game');$('levelLabel').textContent=modes[k].name;
+ recordProgress();render()}
+function key(){return mode+'-'+step}
+function render(){if(!mode)return;let s=stages[mode][step];$('progress').textContent=(step+1)+' / '+stages[mode].length;$('sceneTitle').textContent=s.title;$('story').textContent=s.story;$('question').textContent=s.question;$('clues').textContent='気になるところを調べよう。';$('log').textContent='';$('inspect').innerHTML='';$('answers').innerHTML='';$('controls').innerHTML='';$('map').innerHTML='';for(let i=0;i<3;i++){let t=document.createElement('div');t.className='tile'+(i>step?' off':'');t.textContent=['①','②','③'][i]+(i===step?' 📍':i<step?' ✅':' 🔒');$('map').append(t)};s.spots.forEach((x,i)=>{let b=document.createElement('button');b.className='choice';b.textContent='🔍 '+['場所①','場所②','場所③'][i];b.onclick=()=>inspect(i);$('inspect').append(b)});s.choices.forEach((x,i)=>{let b=document.createElement('button');b.className='choice';b.textContent=(i+1)+'. '+x;b.onclick=()=>answer(i);b.disabled=finished;$('answers').append(b)});if(!finished&&modes[mode].hint){let b=document.createElement('button');b.className='alt';b.textContent='💡 ヒント（探偵ポイント −2）';b.onclick=hint;$('controls').append(b)}else{let x=document.createElement('span');x.className='tag';x.textContent='ヒントなしの挑戦！';$('controls').append(x)}if(finished){showSolved();}else if(seen.length){$('clues').textContent='調査済み：'+seen.map(i=>s.spots[i]).join(' ／ ');}
+ stats()}
+function showSolved(){$('log').className='feedback success';$('log').textContent='🎉 この部屋は正解済み！ 続きから再開できたよ。';$('controls').innerHTML='';let b=document.createElement('button');b.textContent=step===stages[mode].length-1?'🏆 クリアする':'次の部屋へ →';b.onclick=next;$('controls').append(b)}
+function inspect(i){
+ const stage=stages[mode][step];
+ if(!seen.includes(i)){seen.push(i);recordProgress();}
+ $('clues').textContent=stage.spots[i];
+ if(i===stage.secret){
+  const id=key();
+  if(!save.rooms.includes(id)){
+   save.rooms.push(id);
+   if(mode==='joker'&&!jokerState.rooms.includes(id))jokerState.rooms.push(id);
+   if(!rewards.rooms.includes(id)){
+    rewards.rooms.push(id);
+    save.points+=3;
+    notice('🚪 隠し部屋を発見！ 初回報酬 +3ポイント');
+   }else{
+    notice('🚪 隠し部屋を再発見！ 報酬は受け取り済み');
+   }
+   store();
+  }
+  $('clues').textContent+='\n🚪 かくし部屋：'+stage.secretText;
+ }
+ stats();
+}
+function hint(){let s=stages[mode][step];if(save.points<2){notice('ポイントが足りないよ。隠し部屋を調べて集めよう！');return}save.points-=2;store();notice('💡 '+s.hint);stats()}
+function answer(i){if(finished)return;let s=stages[mode][step];if(!s.need.every(n=>seen.includes(n))){$('log').className='feedback';$('log').textContent='🔎 まだ手がかりが足りないよ。調べられる場所をもっと見てみよう！';return}if(i!==s.answer){$('log').className='feedback';$('log').textContent='うーん、もう一度手がかりをよく見て考えてみよう。';return}finished=true;recordProgress();if(!rewards.solved.includes(key())){rewards.solved.push(key());save.points+=5;store();notice('✅ 正解！ 初回報酬 +5ポイント')}else{notice('✅ 正解！ この謎の報酬は受け取り済み')}$('log').className='feedback success';$('log').textContent='🎉 正解！ この部屋の謎を解いた！';$('controls').innerHTML='';let b=document.createElement('button');b.textContent=step===stages[mode].length-1?'🏆 クリアする':'次の部屋へ →';b.onclick=next;$('controls').append(b);stats()}
+function next(){if(!finished)return;if(step+1<stages[mode].length){step++;seen=[];finished=false;recordProgress();render()}else{save.cleared[mode]=true;if(mode==='joker'){jokerState.cleared=true;jokerState.step=step;}recordProgress();screen('ending');$('endText').textContent=modes[mode].name+'をクリア！ 隠し部屋は全部で'+save.rooms.length+'部屋見つけたよ。ほかの迷宮にも秘密があるかもしれない。';stats()}}
+$('homeBtn').onclick=home;$('back').onclick=home;$('again').onclick=()=>{if(mode==='joker'){notice('🃏 ジョーカーモードは最初からやり直せません。');return;}start(mode)};$('reset').onclick=()=>{if(confirm('通常モードの進み具合・探偵ポイントなどをリセットしますか？\n※ジョーカーモードの進行状況・隠し部屋・クリア記録は残ります。\n※探偵ポイントの獲得履歴は消えず、同じ問題・隠し部屋で再獲得できません。\n※プレゼントコードの使用履歴は本体で管理します。')){save=fresh();save.cleared.joker=jokerState.cleared;save.rooms=[...jokerState.rooms];store();notice('通常モードをリセットしました。ジョーカーモードの記録はそのままです。');home()}};home();
+</script></body></html>
