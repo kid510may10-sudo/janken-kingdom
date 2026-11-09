@@ -1,0 +1,17 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>🎰 ガチャ管理・既存パック表示修正版</title><style>body{font-family:system-ui,sans-serif;background:#100c1d;color:white;margin:0;padding:30px 16px}.wrap{max-width:680px;margin:auto;background:#21182f;padding:24px;border:1px solid #635177;border-radius:16px}h1{font-size:23px}p{line-height:1.7;color:#e4d8ed}a{color:#dfbcff}button{background:#a38cfe;border:0;padding:12px;border-radius:10px;font:inherit;font-weight:bold}</style></head><body><main class="wrap"><h1>🎰 じゃんけんキングダム ガチャ管理</h1><p id="progress">既存のガチャ管理機能を保持しながら、通常パックの読み込みを修正しています…</p><p id="error"></p></main><script>
+(async function(){
+ const source='https://raw.githubusercontent.com/kid510may10-sudo/janken-kingdom/3ae7878031f3ec28aa5ba71521195cb8d3e7b0ce/admin/gacha/index.html';
+ try{
+  const response=await fetch(source,{cache:'no-cache'});if(!response.ok)throw Error('元の管理画面を取得できません (HTTP '+response.status+')');
+  let html=await response.text();
+  const oldQuery='db.collection("packs").where("isCustom","==",true).get()';
+  const oldFilter='packs=packSnap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>x.name||x.attrs);';
+  if(!html.includes(oldQuery)||!html.includes(oldFilter))throw Error('保存済みの管理画面の読み込み箇所が変更されました');
+  html=html.replace(oldQuery,'db.collection("packs").get()');
+  html=html.replace(oldFilter,'packs=packSnap.docs.map(d=>({id:d.id,...d.data()})).filter(x=>!x.id.startsWith("__")&&(x.name||x.attrs||x.price!=null));');
+  html=html.replace('カスタムカードパックなし','Firebaseに登録済みのカードパックはありません。以前の3パックがゲーム本体内の定義のみの場合、追加同期が必要です。');
+  html=html.replace('現在メインゲームにある通常カードパックも表示します。万能ガチャとは別に、そのまま残ります。','既存パックもFirebaseのすべての packs から読み込みます。パック設定は変更・削除しません。');
+  document.open();document.write(html);document.close();
+ }catch(e){document.getElementById('progress').textContent='管理画面を読み込めませんでした。';document.getElementById('error').textContent=e.message+'。ネット接続を確認するか、同梱の standalone_backup.html を使ってください。';}
+})();
+</script></body></html>
