@@ -1,0 +1,212 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>夢の効果工房｜じゃんけんキングダム</title>
+<style>
+:root{color-scheme:dark;--bg:#100d1c;--card:#20192e;--line:#574671;--gold:#ffe18a;--muted:#bcb0d0;--blue:#7acaff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#392456 0,#151020 55%,#0e0b16 100%);color:#f8f2ff;font-family:system-ui,"Hiragino Sans","Yu Gothic",sans-serif;line-height:1.55}
+.wrap{max-width:940px;margin:auto;padding:12px 12px 48px}h1{margin:8px 0;font-size:clamp(24px,5vw,37px)}h2{font-size:20px;margin:5px 0 12px}h3{font-size:15px;margin:5px 0}p{margin:8px 0}header{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:8px 0 13px}
+.panel{background:#20192eea;border:1px solid var(--line);border-radius:20px;padding:17px;margin-bottom:14px;box-shadow:0 10px 35px #0005}.sub{font-size:12px;color:var(--muted)}.chip{display:inline-block;background:#312342;border:1px solid #6e5888;border-radius:999px;padding:5px 10px;font-size:12px;color:var(--gold)}
+a{color:#d8c2ff;text-decoration:none}button,select,input,textarea{font:inherit}button{border:1px solid #7458a4;border-radius:14px;padding:12px 15px;color:white;background:#46305f;font-weight:800;cursor:pointer}button.primary{background:linear-gradient(130deg,#ffe48b,#f0a849);border:0;color:#241508}button.secondary{background:#302441}button:disabled{opacity:.4;cursor:default}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.field label{display:block;font-size:12px;color:#d9cbe7;margin-bottom:6px}select,input,textarea{width:100%;border:1px solid #67527c;background:#0c0b15;color:white;border-radius:12px;padding:12px;min-width:0}.description{background:#151021;border-radius:13px;padding:12px;margin-top:14px;border:1px solid #463957}.progress{height:10px;background:#0c0914;border:1px solid #665071;border-radius:99px;overflow:hidden;margin:10px 0}.progress>div{height:100%;background:linear-gradient(90deg,#7dd8fa,#ffe383);transition:width .2s}.question{border:1px solid #514060;background:#161020;border-radius:15px;padding:14px;margin:12px 0}.qhead{font-size:16px;font-weight:800;margin-bottom:9px}.choices{display:grid;grid-template-columns:1fr 1fr;gap:8px}.choices button{background:#2c2340}.choices button.active{border:2px solid #ffdb6d;background:#63512b;color:#fff7db}.controls{display:flex;gap:8px;justify-content:space-between;margin-top:15px;flex-wrap:wrap}.controls button{flex:1;min-width:110px}.notice{padding:10px 12px;background:#222c3b;border:1px solid #527a99;border-radius:11px;font-size:12px;color:#dceeff}.effect{border:1px solid #77619a;background:linear-gradient(135deg,#322145,#1a172c);border-radius:16px;padding:15px;margin:9px 0}.effect strong{color:var(--gold)}.effect .stat{font-weight:800;color:#9ce6ff}.tags{display:flex;gap:7px;flex-wrap:wrap;margin:6px 0}.tag{border-radius:99px;padding:3px 8px;background:#2d344b;color:#d5ebff;font-size:11px}.row{display:flex;gap:8px;flex-wrap:wrap}.row button{flex:1}.hidden{display:none!important}#message{min-height:20px;color:#ffe18a;font-weight:700;font-size:13px;margin:10px 0}textarea{height:140px;font-family:ui-monospace,monospace;font-size:11px}.help{font-size:13px;color:#d8cbe1}.badge{font-size:12px;color:#ffe18a}
+@media(max-width:690px){.grid{grid-template-columns:1fr}.panel{padding:13px}.qhead{font-size:15px}header{align-items:flex-start}}
+</style></head><body><div class="wrap">
+<header><div><span class="chip">🏰 JANKEN KINGDOM</span><h1>🌙 夢の効果工房</h1><p class="sub">種族・戦闘タイプ・進化を先に決定！ 基本30問、化身追加で50問、進化は60問。</p></div><a href="./">← メインへ</a></header>
+<section class="panel" id="setup"><h2>① はじめにカードの方向性を選ぼう</h2><div class="grid">
+<div class="field"><label for="effectCount">つくる効果の数</label><select id="effectCount"><option value="1">1つ（シンプル）</option><option value="2">2つ（コンボ向き）</option><option value="3" selected>3つ（多彩な戦い方）</option></select></div>
+<div class="field"><label for="role">メインの戦闘タイプ</label><select id="role"><option value="attack">⚔️ アタック型</option><option value="defense">🛡️ 防御型</option><option value="support">✨ サポート型</option><option value="heal">💚 回復型</option><option value="trick">🌀 特殊型</option><option value="control">🔒 妨害型</option><option value="balanced">⚖️ バランス型</option></select></div>
+<div class="field"><label for="species">種族（能力のベース）</label><select id="species"></select></div>
+<div class="field"><label for="evolve">進化の有無</label><select id="evolve"><option value="no">進化しないカード</option><option value="yes">🌟 進化するカード（合計60問）</option></select></div>
+</div><div class="description" id="speciesInfo"></div><button class="primary" id="start" style="width:100%;margin-top:15px">夢のアンケートへ →</button></section>
+<section class="panel hidden" id="survey"><div style="display:flex;justify-content:space-between;gap:7px;align-items:center"><h2>② 夢の戦い方アンケート</h2><span id="surveyNum" class="chip">1〜5 / 30〜60</span></div><p class="sub">どちらも正解！「はい」か「いいえ」を選んでね。5問ずつ答えられるよ。</p><div class="progress"><div id="bar"></div></div><div id="questions"></div><div id="surveyMessage" class="sub"></div><div class="controls"><button class="secondary" id="previous">← 戻る</button><button class="primary" id="next">次の5問へ →</button></div></section>
+<section class="panel hidden" id="result"><h2>③ あなたの夢から生まれた効果！</h2><div id="resultIntro" class="description"></div><div id="effects"></div><div id="incarnationResult"></div><div id="evolutionResult"></div><p class="notice">通常効果はゲーム既存の効果IDを使用します。化身・進化は既存ゲームのデータ形式を参照した「設計案」です。カード管理への自動取り込みは通常効果までです。化身・進化の詳細はJSONから従来のゲーム側管理画面へ設定してください。効果の強さはカードのレア度やゲームバランスに合わせて、あとからカード管理で編集できます。回復型はHP回復ではなく、得点の取り戻し・吸収で表現します。</p><div class="row" style="margin:12px 0"><button class="primary" id="send">🃏 カード管理へ送る</button><button class="secondary" id="reroll">🎲 同じ回答で作り直す</button><button class="secondary" id="backSurvey">← 回答を直す</button></div><div id="message" role="status"></div><details><summary>開発者向け：効果データをコピー・確認する</summary><p class="sub">カード管理へ送れない場合はこのJSONを保存してください。</p><textarea id="json" readonly></textarea><button id="copy">📋 JSONをコピー</button></details></section>
+<footer class="sub">※ このページは独立動作。カード作成で取り込むには、同梱の「カード管理連携パッチ」を1回適用してください。Firebaseへの書き込みはカード管理画面の「保存」ボタンを押すまで行いません。</footer></div>
+<script>
+'use strict';
+const STORE_KEY='jk_dream_effect_draft_v1';
+const SPECIES={
+ none:{name:'無属性',icon:'⚪',text:'状況に対応する万能戦術。効果の偏りを抑える。',prefer:['random_plus','tie_plus','comeback']},
+ dragon:{name:'ドラゴン',icon:'🐉',text:'圧倒的な火力と勝利時の追撃が中心。',prefer:['win_plus','op_minus_win','streak']},
+ insect:{name:'インセクト',icon:'🪲',text:'連続攻撃、トリッキーな一撃、相手の隙を突く。',prefer:['streak','counter_rock','random_plus']},
+ vampire:{name:'バンパイア',icon:'🦇',text:'相手から得点を吸収し、劣勢から逆転する。',prefer:['drain_win','revenge','comeback']},
+ beast:{name:'ビースト',icon:'🐺',text:'勢いと連勝で攻める攻撃特化。',prefer:['streak','win_plus','counter_scissors']},
+ elf:{name:'エルフ',icon:'🧝',text:'補助・保護・情報を活かす戦い。',prefer:['protect','reveal_on_win','lead_bonus']},
+ undead:{name:'アンデッド',icon:'💀',text:'敗北から立ち直り、相手を消耗させる。',prefer:['lose_plus','revenge','drain_win']},
+ machine:{name:'マシン',icon:'🤖',text:'安定性、連動効果、精密な妨害。',prefer:['protect','same_hand_combo','cancel']},
+ spirit:{name:'スピリット',icon:'✨',text:'運命の揺らぎ、あいこ、特殊な逆転。',prefer:['tie_plus','tie_to_win','random_plus']},
+ knight:{name:'ナイト',icon:'🛡️',text:'鉄壁の防御と仲間を守る効果。',prefer:['protect','shield_gain','lead_bonus']},
+ mage:{name:'メイジ',icon:'🪄',text:'さまざまな効果を組み合わせる魔法戦術。',prefer:['random_plus','seal_next','counter_paper']},
+ christmas:{name:'クリスマス',icon:'🎄',text:'仲間への贈り物のような補助・逆転。',prefer:['tie_plus','comeback','protect']},
+ dog:{name:'ドッグ',icon:'🐕',text:'仲間の支援と粘り強い追撃。',prefer:['same_hand_combo','protect','revenge']},
+ god:{name:'神',icon:'🌟',text:'勝負の流れを変える強力な特殊効果。',prefer:['tie_to_win','cancel','special_no_minus']},
+ animal:{name:'アニマル',icon:'🦊',text:'柔軟でバランスのよい戦術。',prefer:['win_plus','comeback','different_hand_combo']},
+ yoma:{name:'妖魔',icon:'👹',text:'相手の得点や効果を乱す妨害型。',prefer:['op_minus_any','seal_next','cancel']}
+};
+const ROLES={
+ attack:{name:'アタック型',pool:['win_plus','op_minus_win','streak','attr_win_bonus','counter_rock','counter_scissors','counter_paper','random_plus','drain_win']},
+ defense:{name:'防御型',pool:['shield_gain','protect','loss_cancel','comeback','lead_bonus','tie_plus','lose_plus','seal_next']},
+ support:{name:'サポート型',pool:['protect','reveal_on_win','reveal_two_win','same_hand_combo','different_hand_combo','attr_win_bonus','tie_plus','shield_gain','lead_bonus']},
+ heal:{name:'回復型',pool:['drain_win','lose_plus','comeback','revenge','tie_plus','shield_gain','protect','special_recover_used']},
+ trick:{name:'特殊型',pool:['tie_to_win','random_plus','cancel','special_add_incarnation','reveal_on_win','counter_paper','different_hand_combo','seal_next','special_recover_used']},
+ control:{name:'妨害型',pool:['cancel','seal_next','op_minus_any','op_minus_win','special_no_minus','special_both_effects_off','reveal_two_win','counter_rock']},
+ balanced:{name:'バランス型',pool:['win_plus','tie_plus','lose_plus','shield_gain','protect','comeback','random_plus','drain_win','cancel','same_hand_combo']}
+};
+const EFFECTS={
+ win_plus:['勝利ボーナス','じゃんけんに勝つと追加ポイントを獲得する。'],tie_plus:['あいこボーナス','あいこのとき追加ポイントを獲得する。'],lose_plus:['敗北ボーナス','負けてもポイントを取り戻す。'],
+ op_minus_win:['勝利時ポイント破壊','勝利時に相手のポイントを減らす。'],op_minus_any:['相手ポイント減少','相手のポイントを減らす。'],drain_win:['ポイント吸収','勝利時に相手からポイントを吸収する。'],
+ cancel:['相手効果を無効','相手の効果を無効にする。'],seal_next:['次ターン効果封印','相手の次ターンの効果を封じる。'],protect:['妨害耐性','妨害に対して強くなる。'],
+ comeback:['劣勢ボーナス','負けているときに追加ポイントを得る。'],lead_bonus:['リードボーナス','優勢のときの追加ポイント。'],
+ streak:['連勝ボーナス','連続勝利の勢いを活かす。'],revenge:['リベンジ','前の敗北を巻き返す。'],same_hand_combo:['同じ手コンボ','同じじゃんけんの手を組み合わせる。'],different_hand_combo:['違う手コンボ','異なるじゃんけんの手を組み合わせる。'],
+ attr_win_bonus:['種族勝利ボーナス','種族の力による勝利ボーナス。'],counter_rock:['グー対策','グーを相手にした戦いを有利にする。'],counter_scissors:['チョキ対策','チョキを相手にした戦いを有利にする。'],counter_paper:['パー対策','パーを相手にした戦いを有利にする。'],
+ random_plus:['ランダム加点','運によって追加ポイントが変わる。'],reveal_on_win:['勝ったら手札を見る','勝利時に相手の手札情報を得る。'],reveal_two_win:['勝ったら2枚見る','勝利時に相手の手札を2枚確認する。'],
+ tie_to_win:['あいこを勝ち扱い','あいこを勝ちに変える。'],loss_cancel:['敗北キャンセル','負けを取り消す防御。'],shield_gain:['シールド獲得','自分のシールドを獲得する。'],
+ special_add_incarnation:['必殺：化身招来','化身を呼び出す特殊効果。'],special_no_minus:['必殺：減点封鎖','ポイント減少を防ぐ。'],special_both_effects_off:['必殺：完全沈黙','互いの効果を封じる。'],special_recover_used:['必殺：再起','使ったカードを回収して再び戦う。']
+};
+// 質問は「通常30問」「化身20問」「進化30問」。進化あり+化身ありの場合は
+// 進化追加30問の内訳が「化身20問＋進化10問」になり、合計60問に収める。
+const COMMON_Q=[
+ ['一撃で勝負を決めたい？',['win_plus','op_minus_win','attr_win_bonus']],
+ ['ピンチの時に強くなりたい？',['comeback','revenge','lose_plus']],
+ ['守りを固めてから戦いたい？',['shield_gain','protect','loss_cancel']],
+ ['仲間との連携を大切にしたい？',['same_hand_combo','attr_win_bonus']],
+ ['運に左右される能力は好き？',['random_plus','tie_to_win']],
+ ['相手のポイントを奪いたい？',['drain_win','op_minus_any']],
+ ['同じ手を連続で出したい？',['same_hand_combo','streak']],
+ ['あいこでも有利になりたい？',['tie_plus','tie_to_win']],
+ ['相手の手札を知りたい？',['reveal_on_win','reveal_two_win']],
+ ['相手の効果を止めたい？',['cancel','seal_next']],
+ ['シールドを増やして守りたい？',['shield_gain','protect']],
+ ['次のラウンドまで計画を立てたい？',['seal_next','lead_bonus']],
+ ['敗北をきっかけに強くなりたい？',['lose_plus','revenge']],
+ ['連勝を重ねて得点を伸ばしたい？',['streak','win_plus']],
+ ['小さな加点を積み重ねたい？',['tie_plus','lead_bonus']],
+ ['敵のポイントを破壊したい？',['op_minus_any','op_minus_win']],
+ ['カードの組み合わせが好き？',['different_hand_combo','same_hand_combo']],
+ ['勝利時に追加のごほうびが欲しい？',['win_plus','reveal_on_win']],
+ ['切り札を最後まで隠したい？',['special_recover_used','tie_to_win']],
+ ['戦闘途中で自分の化身を呼びたい？',['special_add_incarnation']],
+ ['グーへの対策を重視する？',['counter_rock']],
+ ['チョキへの対策を重視する？',['counter_scissors']],
+ ['パーへの対策を重視する？',['counter_paper']],
+ ['優勢になったら一気に攻めたい？',['lead_bonus','win_plus']],
+ ['守りから反撃するのが好き？',['drain_win','revenge']],
+ ['相手の妨害に強くしたい？',['protect','special_no_minus']],
+ ['違う手を使い分けたい？',['different_hand_combo','random_plus']],
+ ['負けていても逆転する可能性が欲しい？',['comeback','tie_to_win']],
+ ['使ったカードをもう一度使いたい？',['special_recover_used']],
+ ['予想外の特殊な勝ち方をしたい？',['tie_to_win','special_both_effects_off']]
+];
+const EVO_BASE_Q=[
+ ['最初は弱く、進化後に強くしたい？',['comeback','win_plus']],
+ ['進化前に守りを固めたい？',['shield_gain','protect']],
+ ['進化条件はラウンド数がよい？',['lead_bonus']],
+ ['負けているとき進化したい？',['revenge','comeback']],
+ ['勝利を重ねると進化したい？',['streak','win_plus']],
+ ['同じ種族を使ったら進化したい？',['attr_win_bonus']],
+ ['進化前から手札の化身を集めたい？',['special_add_incarnation']],
+ ['進化でじゃんけんの手を変えたい？',['different_hand_combo']],
+ ['進化後は高火力にしたい？',['win_plus','op_minus_win']],
+ ['進化後は硬く守りたい？',['shield_gain','protect']],
+ ['進化後は回復・吸収を得意にしたい？',['drain_win','lose_plus']],
+ ['進化後は相手を封じたい？',['cancel','seal_next']],
+ ['進化条件を2つ組み合わせたい？',['same_hand_combo']],
+ ['序盤は小さな得点を積みたい？',['tie_plus']],
+ ['進化で劣勢をひっくり返したい？',['comeback','tie_to_win']],
+ ['化身を使って進化を早めたい？',['special_add_incarnation']],
+ ['勝ったラウンドのあと進化したい？',['streak']],
+ ['進化したときに攻撃を強めたい？',['win_plus']],
+ ['進化したときにシールドを獲得したい？',['shield_gain']],
+ ['進化後は特殊な勝利条件を狙いたい？',['tie_to_win']],
+ ['自分の手札に化身があると進化したい？',['special_add_incarnation']],
+ ['進化後も味方との連携を重視したい？',['same_hand_combo']],
+ ['進化で相手の得点を減らしたい？',['op_minus_any']],
+ ['進化前は相手の効果を防ぎたい？',['protect']],
+ ['進化後は相手の効果を無効にしたい？',['cancel']],
+ ['勝利時の追加ポイントを進化後に増やしたい？',['win_plus']],
+ ['連続で勝てるほど進化が得意になる？',['streak']],
+ ['進化条件には使ったカードの種類を含めたい？',['attr_win_bonus']],
+ ['進化後の種族は元と同じがよい？',['attr_win_bonus']],
+ ['進化後に必殺技も活用したい？',['special_recover_used']]
+];
+const INC_Q=[
+ ['化身を自分の手札に追加したい？',['special_add_incarnation']],
+ ['化身を相手の手札へ送り込みたい？',['seal_next','op_minus_any']],
+ ['勝ったときに化身を呼びたい？',['win_plus']],
+ ['あいこのとき化身を呼びたい？',['tie_plus']],
+ ['負けたときに化身を呼びたい？',['lose_plus']],
+ ['自分が劣勢なら化身を呼びたい？',['comeback']],
+ ['一定ラウンド以降に化身を呼びたい？',['lead_bonus']],
+ ['化身を呼ぶために手札を捨ててもよい？',['special_recover_used']],
+ ['化身を2枚同時に増やしたい？',['special_add_incarnation']],
+ ['化身をランダムで選びたい？',['random_plus']],
+ ['化身を自分で選んで加えたい？',['reveal_on_win']],
+ ['化身にグーを持たせたい？',['counter_rock']],
+ ['化身にチョキを持たせたい？',['counter_scissors']],
+ ['化身にパーを持たせたい？',['counter_paper']],
+ ['化身は攻撃で活躍してほしい？',['win_plus','op_minus_win']],
+ ['化身は守りで活躍してほしい？',['shield_gain','protect']],
+ ['化身は相手を妨害してほしい？',['cancel','seal_next']],
+ ['化身の効果でポイントを吸収したい？',['drain_win']],
+ ['化身を進化の素材に使いたい？',['special_add_incarnation']],
+ ['化身が出ると戦況が大きく変わってほしい？',['tie_to_win','random_plus']]
+];
+const EVO_DETAIL_Q=[
+ ['進化の条件は「3ラウンド目以降」に近い？',['lead_bonus']],
+ ['進化には勝利回数が必要？',['streak']],
+ ['進化には劣勢の条件が必要？',['comeback']],
+ ['指定種族のカード使用を条件にしたい？',['attr_win_bonus']],
+ ['化身を手札に持つことを進化条件にしたい？',['special_add_incarnation']],
+ ['進化後の手はグーがよい？',['counter_rock']],
+ ['進化後の手はチョキがよい？',['counter_scissors']],
+ ['進化後は勝利ボーナスを最優先したい？',['win_plus']],
+ ['進化後は相手の得点を減らしたい？',['op_minus_win']],
+ ['進化後はポイント吸収を最優先したい？',['drain_win']],
+ ['進化後はシールドを強化したい？',['shield_gain']],
+ ['進化後は効果無効を強化したい？',['cancel']],
+ ['進化後もコンボを維持したい？',['same_hand_combo']],
+ ['進化後は逆転を狙いたい？',['comeback']],
+ ['進化条件は2つ必要にしたい？',['protect']],
+ ['進化後の特殊勝利を狙いたい？',['tie_to_win']],
+ ['進化後に手札情報を見たい？',['reveal_on_win']],
+ ['進化後も種族は変えたくない？',['attr_win_bonus']],
+ ['進化後の強さはやや控えめがいい？',['lead_bonus']],
+ ['進化後の強さは大きく跳ね上げたい？',['win_plus']],
+ ['進化後に相手の効果を封印したい？',['seal_next']],
+ ['進化後に使ったカードを回収したい？',['special_recover_used']],
+ ['進化条件は1つだけで十分？',['protect']],
+ ['進化後はあいこを勝ち扱いにしたい？',['tie_to_win']],
+ ['進化後は連勝で強くなりたい？',['streak']],
+ ['進化後も防御を重視したい？',['shield_gain']],
+ ['進化後は相手のカードを読むタイプがよい？',['reveal_two_win']],
+ ['進化後のレア度を高めたい？',['win_plus']],
+ ['進化で別の種族へ変化させたい？',['different_hand_combo']],
+ ['進化後には切り札らしい個性が欲しい？',['special_both_effects_off']]
+];
+let answers=[],questions=[],page=0,draft=null,phase='base',evolve=false,incEnabled=false;
+const el=id=>document.getElementById(id), rnd=()=>{if(window.crypto?.getRandomValues){const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]/4294967296}return Math.random()};
+for(const [id,s] of Object.entries(SPECIES))el('species').insertAdjacentHTML('beforeend',`<option value="${id}">${s.icon} ${s.name}</option>`);
+function info(){const s=SPECIES[el('species').value];el('speciesInfo').innerHTML=`<b>${s.icon} ${s.name}の基本戦術</b><p class="help">${s.text}</p><span class="badge">得意技：${s.prefer.map(x=>EFFECTS[x]?.[0]||x).join('・')}</span><p class="help">${el('evolve').value==='yes'?'🌟 進化専用30問から開始。進化の条件・進化後の戦術も質問します。合計60問。':'通常30問から開始。化身の適性が高い場合は20問を追加して合計50問。'}</p>`}
+for(const id of ['species','role','evolve'])el(id).addEventListener('change',info);info();
+function branchNeeded(){const get=i=>answers[i]===true;if(evolve)return get(6)||get(15)||get(20);const score=[3,16,19,29].filter(get).length;return score>=2||get(19);}
+function updateQuestions(){const baseline=evolve?EVO_BASE_Q:COMMON_Q;const newQ=baseline.map((x,i)=>({text:x[0],kinds:x[1],section:evolve?'進化の戦い方':'基本の戦い方',id:'base'+i}));if(phase!=='base'){
+ if(incEnabled){INC_Q.forEach((x,i)=>newQ.push({text:x[0],kinds:x[1],section:'化身カードの詳細',id:'inc'+i}));}
+ if(evolve){const n=incEnabled?10:30;EVO_DETAIL_Q.slice(0,n).forEach((x,i)=>newQ.push({text:x[0],kinds:x[1],section:'進化条件・進化後の詳細',id:'evo'+i}));}
+ }
+ const old=new Map(questions.map((q,i)=>[q.id,answers[i]]));questions=newQ;answers=questions.map(q=>old.has(q.id)?old.get(q.id):null);
+}
+el('start').onclick=()=>{evolve=el('evolve').value==='yes';phase='base';incEnabled=false;questions=[];answers=[];updateQuestions();page=0;el('setup').classList.add('hidden');el('survey').classList.remove('hidden');renderQ();window.scrollTo(0,0)};
+function renderQ(){const from=page*5,n=questions.length;el('surveyNum').textContent=`${from+1}〜${Math.min(from+5,n)} / ${n}`;el('bar').style.width=(answers.filter(x=>x!==null).length/n*100)+'%';el('questions').innerHTML=questions.slice(from,from+5).map((q,j)=>{const i=from+j;return `<div class="question"><div class="sub">${q.section}</div><div class="qhead">Q${i+1}. ${q.text}</div><div class="choices"><button type="button" class="${answers[i]===true?'active':''}" data-i="${i}" data-answer="true">👍 はい</button><button type="button" class="${answers[i]===false?'active':''}" data-i="${i}" data-answer="false">👎 いいえ</button></div></div>`}).join('');el('questions').querySelectorAll('button').forEach(b=>b.onclick=()=>{answers[+b.dataset.i]=b.dataset.answer==='true';renderQ()});el('previous').disabled=page===0;el('next').textContent=from+5>=n?(phase==='base'?'✨ 追加質問を判定する':'✨ 効果を生成！'):'次の5問へ →';el('surveyMessage').textContent=`回答済み：${answers.filter(x=>x!==null).length}/${n}問`}
+el('previous').onclick=()=>{if(page>0){page--;renderQ();window.scrollTo(0,0)}};
+el('next').onclick=()=>{const from=page*5;const missing=questions.slice(from,from+5).findIndex((_,i)=>answers[from+i]===null);if(missing>=0){el('surveyMessage').textContent=`Q${from+missing+1}にも答えてね。`;return}if(from+5<questions.length){page++;renderQ();window.scrollTo(0,0);return}if(phase==='base'){incEnabled=branchNeeded();if(incEnabled||evolve){phase='extra';updateQuestions();page=6;renderQ();el('surveyMessage').textContent=`✨ ${incEnabled?'化身があると戦い方を表現しやすいと判定。化身20問を追加！ ':''}${evolve?'進化を作り込む質問も追加！ ':''}全${questions.length}問になりました。`;window.scrollTo(0,0);return}}generate()};
+function weightedPick(options,w){const sum=options.reduce((a,k)=>a+Math.max(0,w[k]||0),0);let n=rnd()*sum;for(const k of options){n-=Math.max(0,w[k]||0);if(n<0)return k}return options[options.length-1]}
+function createEffects(role=el('role').value,count=+el('effectCount').value){const species=el('species').value,s=SPECIES[species],r=ROLES[role];const w={};for(const k of Object.keys(EFFECTS))w[k]=1;for(const k of r.pool)w[k]+=12;for(const k of s.prefer)w[k]+=28;questions.forEach((q,i)=>q.kinds.forEach(k=>{if(EFFECTS[k])w[k]+=answers[i]===true?9:-2}));const chosen=[],preferred=[...new Set([...s.prefer,...r.pool])].filter(k=>EFFECTS[k]);for(let i=0;i<count;i++){const eligible=(i===0?preferred:Object.keys(EFFECTS)).filter(k=>!chosen.includes(k));chosen.push(weightedPick(eligible,w))}return chosen.map((kind,i)=>{const scalar=['shield_gain','random_plus','win_plus','op_minus_win','op_minus_any','drain_win','lose_plus','comeback','revenge','lead_bonus','streak','tie_plus'].includes(kind);const yes=answers.filter(x=>x===true).length;const value=scalar?2+Number(i===0&&yes>=Math.ceil(questions.length*.66)):1;return {kind,value,effectConfig:{},shieldCost:0,activation:{conditions:[],negatedOnly:false}}})}
+function answer(id){const i=questions.findIndex(q=>q.id===id);return i>=0&&answers[i]===true}
+function makeIncarnation(effects){if(!incEnabled)return null;const send=answer('inc1'),own=answer('inc0')||!send;const hand=answer('inc11')?'rock':answer('inc12')?'scissors':answer('inc13')?'paper':['rock','paper','scissors'][Math.floor(rnd()*3)];const atk=answer('inc14'),def=answer('inc15'),ctrl=answer('inc16');const kind=ctrl?'seal_next':def?'shield_gain':atk?'win_plus':answer('inc17')?'drain_win':effects[0].kind;const fx={kind,value:['win_plus','shield_gain','drain_win'].includes(kind)?2:1,effectConfig:{}};const condition=answer('inc2')?'win':answer('inc3')?'tie':answer('inc4')?'lose':answer('inc5')?'behind':answer('inc6')?'round':'win';const choose=answer('inc10')&&!answer('inc9')?'player':'random';const addCount=answer('inc8')?2:1;const inc={enabled:true,condition,value:condition==='round'?3:condition==='behind'?2:1,attr:el('species').value,choose,discardCount:answer('inc7')?1:0,addCount,destination:'hand',cards:[{id:'DRAFT_PARENT_ID_inc_0',name:'夢の化身（名前を編集）',hand,attr:el('species').value,rarity:'TOKEN',cardType:'incarnation',kind:fx.kind,value:fx.value,effectConfig:{},effects:[fx],incarnationOnly:true,parentId:'DRAFT_PARENT_ID',desc:'夢の工房で生成。カード管理の正式IDに置き換えて登録してください。',customArt:''}]};const opponentEffect=send?{kind:'op_discard_send_incarnation',value:1,effectConfig:{trigger:answer('inc5')?'behind':answer('inc6')?'round':'win',triggerValue:2,discardMode:'random',incarnationChoose:'random',scope:'own_cards'},activation:{conditions:[],negatedOnly:false}}:null;return {mode:send?(own?'both':'opponent'):'self',ability:inc,opponentEffect,summary:send?'相手の手札へ化身を送り込む効果も使う':'自分の手札へ化身を加える'};}
+function makeEvolution(effects,inc){if(!evolve)return null;const k=answer('evo1')?'wins':answer('evo2')?'behind':answer('evo3')?'used_attr':answer('evo4')&&inc?'incarnation_in_hand':'round';const cond={type:k,value:k==='round'?3:k==='wins'?2:k==='used_attr'?2:1,attr:el('species').value};const kind=answer('evo10')?'shield_gain':answer('evo11')?'cancel':answer('evo9')?'drain_win':answer('evo8')?'op_minus_win':'win_plus';const hand=answer('evo5')?'rock':answer('evo6')?'scissors':'paper';const list=[{kind,value:['win_plus','shield_gain','op_minus_win','drain_win'].includes(kind)?3:1,effectConfig:{}}];const conditions=answer('base12')||answer('evo14')?[cond,{type:'round',value:4,attr:el('species').value}]:[cond];return {condition:cond,conditions,name:`${SPECIES[el('species').value].name}・夢の進化形`,hand,attr:'same',rarity:'same',kind,value:list[0].value,effects:list,customArt:'',effectText:EFFECTS[kind]?.[1]||'',comboCount:0,comboBonus:0,final:{enabled:false}}}
+function generate(){const effects=createEffects(),species=el('species').value,role=el('role').value,inc=makeIncarnation(effects),evolution=makeEvolution(effects,inc),yes=answers.filter(x=>x===true).length;draft={version:1,dreamVersion:2,id:'dream_'+Date.now()+'_'+Math.floor(rnd()*1e6),createdAt:new Date().toISOString(),species,role,effectCount:effects.length,evolutionEnabled:evolve,incarnationEnabled:incEnabled,questionCount:questions.length,answers:[...answers],questionIds:questions.map(q=>q.id),effects,incarnationProposal:inc,evolutionProposal:evolution,summary:`${SPECIES[species].name}・${ROLES[role].name}。${questions.length}問中${yes}問が「はい」。`};
+ el('survey').classList.add('hidden');el('result').classList.remove('hidden');el('resultIntro').innerHTML=`<b>${SPECIES[species].icon} ${SPECIES[species].name} × ${ROLES[role].name} × ${effects.length}効果</b><p class="help">回答${questions.length}問。${inc?'🪄 化身カードあり。':''}${evolution?'🌟 進化あり。':''}</p>`;
+ el('effects').innerHTML='<h3>🃏 基本カードの効果</h3>'+effects.map((e,i)=>`<div class="effect"><div class="tags"><span class="tag">第${i+1}効果</span><span class="tag">${e.kind}</span></div><h3><strong>🌠 ${EFFECTS[e.kind][0]}</strong></h3><div>${EFFECTS[e.kind][1]}</div><div class="stat">効果値：${e.value}</div></div>`).join('');
+ el('incarnationResult').innerHTML=inc?`<div class="effect"><h3>🪄 生成した化身カード（設計案）</h3><p>${inc.summary}</p><b>化身の効果：</b> ${EFFECTS[inc.ability.cards[0].kind]?.[0]||inc.ability.cards[0].kind}<p>じゃんけん：${inc.ability.cards[0].hand} ／ 追加枚数：${inc.ability.addCount} ／ 呼び出し条件：${inc.ability.condition}</p><p class="sub">${inc.opponentEffect?'相手への化身送り込み：op_discard_send_incarnation（ゲーム内に対応IDあり）。':'自分の手札へ追加する設定。'}正式な化身カード名・画像・IDは後から設定。</p></div>`:'';
+ el('evolutionResult').innerHTML=evolution?`<div class="effect"><h3>🌟 生成した進化形（設計案）</h3><p>${evolution.name}</p><p>条件：${evolution.conditions.map(x=>x.type+' '+x.value).join(' ＋ ')}</p><p>進化後の効果：${EFFECTS[evolution.kind]?.[0]||evolution.kind}（${evolution.value}）</p><p class="sub">正式な進化名・画像や究極進化は従来のゲーム側管理画面で最終設定。</p></div>`:'';
+ el('json').value=JSON.stringify(draft,null,2);el('message').textContent='';window.scrollTo(0,0)}
+el('reroll').onclick=generate;el('backSurvey').onclick=()=>{el('result').classList.add('hidden');el('survey').classList.remove('hidden');page=Math.floor((questions.length-1)/5);renderQ()};
+el('send').onclick=()=>{if(!draft)return;try{localStorage.setItem(STORE_KEY,JSON.stringify(draft));el('message').textContent='✅ 下書きを保存。カード管理では種族と通常効果を取り込めます。進化・化身の詳細はJSONを元にゲーム側で設定してください。';const target=new URL('./admin/cards/?dreamImport=1',location.href);if(location.protocol==='file:'){el('message').textContent='⚠️ ローカルファイルではページ間で保存領域が共有されない場合があります。GitHub Pages上で使用してね。'}else window.location.href=target.href}catch(e){el('message').textContent='保存できませんでした。JSONをコピーして保管してください。'}};
+el('copy').onclick=async()=>{try{await navigator.clipboard.writeText(el('json').value);el('message').textContent='JSONをコピーしたよ'}catch(e){el('json').select();document.execCommand('copy');el('message').textContent='JSONを選択しました'}};
+</script></body></html>
